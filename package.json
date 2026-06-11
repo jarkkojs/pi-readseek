@@ -1,0 +1,73 @@
+{
+  "name": "pi-readseek",
+  "version": "0.1.0",
+  "description": "Pi extension for readseek-backed hash-anchored read/edit/grep, structural code maps, structural search, and file exploration",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "hashline",
+    "code-map",
+    "structural-search"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coctostan/pi-readseek.git"
+  },
+  "author": "Maxwell Newman",
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "files": [
+    "index.ts",
+    "src/",
+    "prompts/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node scripts/vitest-run.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@jarkkojs/readseek": "0.1.5",
+    "diff": "^8.0.3",
+    "ignore": "^7.0.5",
+    "picomatch": "^4.0.4",
+    "tree-sitter-wasms": "0.1.13",
+    "web-tree-sitter": "0.25.10",
+    "xxhash-wasm": "^1.1.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "^0.78.0",
+    "@earendil-works/pi-coding-agent": "^0.78.0",
+    "@earendil-works/pi-tui": "^0.78.0",
+    "@sinclair/typebox": "^0.34.48",
+    "@types/node": "^25.5.0",
+    "jiti": "^2.7.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "bugs": {
+    "url": "https://github.com/coctostan/pi-readseek/issues"
+  },
+  "homepage": "https://github.com/coctostan/pi-readseek#readme"
+}

@@ -1,0 +1,69 @@
+import { stat } from "node:fs/promises";
+
+import { readseekMap, readseekMapContent } from "../readseek-client.js";
+import { THRESHOLDS } from "./constants.js";
+import type { FileMap, MapOptions } from "./types.js";
+
+export const READSEEK_MAPPER_NAME = "readseek";
+export const READSEEK_MAPPER_VERSION = 1;
+
+export interface MapperIdentity {
+  mapperName: string;
+  mapperVersion: number;
+}
+
+export interface MapResultWithIdentity extends MapperIdentity {
+  map: FileMap | null;
+}
+
+export const READSEEK_MAPPER_IDENTITY: MapperIdentity = {
+  mapperName: READSEEK_MAPPER_NAME,
+  mapperVersion: READSEEK_MAPPER_VERSION,
+};
+
+export const ALL_MAPPER_IDENTITIES: Record<string, MapperIdentity> = {
+  readseek: READSEEK_MAPPER_IDENTITY,
+};
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  const reason = signal.reason;
+  throw reason instanceof Error ? reason : new Error("aborted");
+}
+
+export async function generateMapWithIdentity(
+  filePath: string,
+  options: MapOptions = {},
+): Promise<MapResultWithIdentity> {
+  throwIfAborted(options.signal);
+  const fileStat = await stat(filePath);
+  throwIfAborted(options.signal);
+  const map = await readseekMap(filePath, fileStat.size);
+  throwIfAborted(options.signal);
+  return { map, ...READSEEK_MAPPER_IDENTITY };
+}
+
+export async function generateMap(
+  filePath: string,
+  options: MapOptions = {},
+): Promise<FileMap | null> {
+  return (await generateMapWithIdentity(filePath, options)).map;
+}
+
+export async function generateMapFromContent(
+  filePath: string,
+  content: string,
+  options: MapOptions = {},
+): Promise<FileMap | null> {
+  throwIfAborted(options.signal);
+  const map = await readseekMapContent(filePath, content);
+  throwIfAborted(options.signal);
+  return map;
+}
+
+export function shouldGenerateMap(
+  totalLines: number,
+  totalBytes: number,
+): boolean {
+  return totalLines > THRESHOLDS.MAX_LINES || totalBytes > THRESHOLDS.MAX_BYTES;
+}

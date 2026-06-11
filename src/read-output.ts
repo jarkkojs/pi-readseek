@@ -1,0 +1,212 @@
+import {
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+  formatSize,
+  truncateHead,
+} from "@earendil-works/pi-coding-agent";
+import { buildReadseekLines, renderReadseekLines, type ReadseekLine, type ReadseekWarning } from "./readseek-value.js";
+import {
+  buildContextHygieneMetadata,
+  buildFileResource,
+  buildSymbolResource,
+  type ContextHygieneMetadata,
+  type ContextHygieneRehydrateDescriptor,
+  type ContextHygieneResource,
+} from "./context-hygiene.js";
+
+export interface ReadSymbolMetadata {
+  query: string;
+  name: string;
+  kind: string;
+  parentName?: string;
+  startLine: number;
+  endLine: number;
+}
+
+export interface ReadTruncationMetadata {
+  outputLines: number;
+  totalLines: number;
+  outputBytes: number;
+  totalBytes: number;
+}
+
+export interface ReadMapMetadata {
+  requested: boolean;
+  appended: boolean;
+  text?: string | null;
+}
+
+export interface ReadContinuationMetadata {
+  nextOffset: number;
+}
+
+export interface ReadBundleSupportItem {
+  symbol: ReadSymbolMetadata;
+  lines: string[];
+}
+
+export interface ReadBundleMetadata {
+  mode: "local";
+  applied: boolean;
+  localSupport: ReadBundleSupportItem[];
+  warnings?: ReadseekWarning[];
+}
+
+export interface ReadOutputInput {
+  path: string;
+  startLine: number;
+  endLine: number;
+  totalLines: number;
+  selectedLines?: string[];
+  lines?: ReadseekLine[];
+  warnings?: ReadseekWarning[];
+  truncation?: ReadTruncationMetadata | null;
+  continuation?: ReadContinuationMetadata | null;
+  symbol?: ReadSymbolMetadata | null;
+  map?: ReadMapMetadata;
+  bundle?: ReadBundleMetadata | null;
+  rehydrate?: ContextHygieneRehydrateDescriptor | null;
+}
+
+export interface ReadOutputResult {
+  text: string;
+  lines: ReadseekLine[];
+  readseekValue: {
+    tool: "read";
+    path: string;
+    range: {
+      startLine: number;
+      endLine: number;
+      totalLines: number;
+    };
+    warnings: ReadseekWarning[];
+    truncation: ReadTruncationMetadata | null;
+    symbol: ReadSymbolMetadata | null;
+    map: {
+      requested: boolean;
+      appended: boolean;
+    };
+    lines: ReadseekLine[];
+    bundle?: {
+      mode: "local";
+      applied: boolean;
+      localSupport: Array<{
+        name: string;
+        kind: string;
+        parentName?: string;
+        startLine: number;
+        endLine: number;
+        lineAnchors: string[];
+      }>;
+      warnings: ReadseekWarning[];
+    };
+  };
+  contextHygiene: ContextHygieneMetadata;
+}
+
+export function buildReadOutput(input: ReadOutputInput): ReadOutputResult {
+  const selectedLines = input.selectedLines ?? input.lines?.map((line) => line.raw) ?? [];
+  const lines = input.lines ?? buildReadseekLines(input.startLine, selectedLines);
+  const warnings = input.warnings ?? [];
+  const renderedLines = renderReadseekLines(lines);
+  const truncated = truncateHead(renderedLines, {
+    maxLines: DEFAULT_MAX_LINES,
+    maxBytes: DEFAULT_MAX_BYTES,
+  });
+
+  let text = input.truncation ? truncated.content : renderedLines;
+
+  if (input.truncation) {
+    text += `\n\n[Output truncated: showing ${input.truncation.outputLines} of ${input.totalLines} lines (${formatSize(input.truncation.outputBytes)} of ${formatSize(input.truncation.totalBytes)}). Use offset=${input.startLine + input.truncation.outputLines} to continue.]`;
+  } else if (input.continuation) {
+    text += `\n\n[Showing lines ${input.startLine}-${input.endLine} of ${input.totalLines}. Use offset=${input.continuation.nextOffset} to continue.]`;
+  }
+
+  if (input.bundle?.applied) {
+    const supportBlocks = input.bundle.localSupport.map((item) => {
+      const supportLines = buildReadseekLines(item.symbol.startLine, item.lines);
+      return renderReadseekLines(supportLines);
+    });
+
+    text = [
+      "## Requested symbol",
+      text,
+      "",
+      "## Local support",
+      ...supportBlocks,
+    ].join("\n");
+  }
+
+  if (input.map?.appended && input.map.text) {
+    text += `\n\n${input.map.text}`;
+  }
+
+  if (input.symbol) {
+    const parentInfo = input.symbol.parentName ? ` in ${input.symbol.parentName}` : "";
+    text = `[Symbol: ${input.symbol.name} (${input.symbol.kind})${parentInfo}, lines ${input.symbol.startLine}-${input.symbol.endLine} of ${input.totalLines}]\n\n${text}`;
+  }
+
+  if (warnings.length) {
+    text = `${warnings.map((warning) => warning.message).join("\n\n")}\n\n${text}`;
+  }
+
+  const readseekValue: ReadOutputResult["readseekValue"] = {
+    tool: "read",
+    path: input.path,
+    range: {
+      startLine: input.startLine,
+      endLine: input.endLine,
+      totalLines: input.totalLines,
+    },
+    warnings,
+    truncation: input.truncation ?? null,
+    symbol: input.symbol ?? null,
+    map: {
+      requested: input.map?.requested ?? false,
+      appended: input.map?.appended ?? false,
+    },
+    lines,
+  };
+
+  if (input.bundle) {
+    readseekValue.bundle = {
+      mode: input.bundle.mode,
+      applied: input.bundle.applied,
+      localSupport: input.bundle.localSupport.map((item) => {
+        const supportLines = buildReadseekLines(item.symbol.startLine, item.lines);
+        return {
+          name: item.symbol.name,
+          kind: item.symbol.kind,
+          parentName: item.symbol.parentName,
+          startLine: item.symbol.startLine,
+          endLine: item.symbol.endLine,
+          lineAnchors: supportLines.map((line) => line.anchor),
+        };
+      }),
+      warnings: input.bundle.warnings ?? [],
+    };
+  }
+
+  const contextHygieneResources: ContextHygieneResource[] = [buildFileResource(input.path)];
+  if (input.symbol) {
+    contextHygieneResources.push(buildSymbolResource(input.path, input.symbol.name, input.symbol.kind));
+  }
+  if (input.bundle?.applied) {
+    for (const support of input.bundle.localSupport) {
+      contextHygieneResources.push(buildSymbolResource(input.path, support.symbol.name, support.symbol.kind));
+    }
+  }
+  const contextHygiene = buildContextHygieneMetadata({
+    tool: "read",
+    classification: "read-context",
+    resources: contextHygieneResources,
+    rehydrate: input.rehydrate ?? undefined,
+  });
+
+  return {
+    text,
+    lines,
+    readseekValue,
+    contextHygiene,
+  };
+}
