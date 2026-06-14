@@ -29,7 +29,7 @@ Patterns are parsed as code, not text. Formatting is mostly ignored, but syntax 
 
 ## Languages
 
-Useful `lang` values include `typescript`, `tsx`, `javascript`, `jsx`, `rust`, `python`, `go`, `java`, `c`, `cpp`, `csharp`, `ruby`, `php`, `lua`, `bash`, `json`, `yaml`, `toml`, `markdown`, `dockerfile`, `nix`, and `zig`. readseek 0.2.3 also accepts languages such as `assembly`, `css`, `gdscript`, `html`, `just`, `kconfig`, `latex`, `make`, `meson`, `perl`, `puppet`, `riscv`, `sql`, `swift`, `typst`, `xml`, and `unknown`.
+Useful `lang` values include `assembly`, `bash`, `c`, `cpp`, `csharp`, `css`, `dockerfile`, `gdscript`, `go`, `html`, `java`, `javascript`, `json`, `jsx`, `just`, `kconfig`, `latex`, `lua`, `make`, `markdown`, `meson`, `nix`, `perl`, `php`, `puppet`, `python`, `riscv`, `ruby`, `rust`, `sql`, `swift`, `toml`, `tsx`, `typescript`, `typst`, `xml`, `yaml`, `zig`, and `unknown`.
 
 `unknown` forces text-only handling and is not useful for parser-backed search.
 
