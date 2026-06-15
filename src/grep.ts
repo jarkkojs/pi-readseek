@@ -7,7 +7,7 @@ import { defineToolPromptMetadata } from "./tool-prompt-metadata.js";
 import { normalizeToLF, stripBom, hasBareCarriageReturn } from "./edit-diff.js";
 import { looksLikeBinary } from "./binary-detect.js";
 import { ensureHashInit, formatHashlineDisplay, escapeControlCharsForDisplay } from "./hashline.js";
-import { buildReadseekError, buildReadseekLine } from "./readseek-value.js";
+import { buildReadseekLine, buildToolErrorResult } from "./readseek-value.js";
 import { buildGrepOutput } from "./grep-output.js";
 
 import { getOrGenerateMap } from "./map-cache.js";
@@ -17,16 +17,11 @@ import { throwIfAborted } from "./runtime.js";
 import { Text } from "@earendil-works/pi-tui";
 import { formatGrepCallText, formatGrepResultText } from "./grep-render-helpers.js";
 import { coerceObviousBase10Int } from "./coerce-obvious-int.js";
-import { clampLineToWidth, clampLinesToWidth, isRendererExpanded, linkToolPath, renderToolLabel, summaryLine } from "./tui-render-utils.js";
+import { clampLineToWidth, clampLinesToWidth, linkToolPath, renderToolLabel, resolveRenderResultContext, summaryLine } from "./tui-render-utils.js";
 
 const GREP_PROMPT_METADATA = defineToolPromptMetadata({
 	promptUrl: new URL("../prompts/grep.md", import.meta.url),
 	promptSnippet: "Search file contents and return edit-ready hashline anchors",
-	promptGuidelines: [
-		"Use grep for text search across files instead of bash grep or rg.",
-		"Use grep summary mode when you only need matching files or counts.",
-		"Use search instead of grep when the query depends on code structure.",
-	],
 });
 
 const grepSchema = Type.Object({
@@ -314,76 +309,23 @@ export function registerGrepTool(pi: ExtensionAPI, options: GrepToolOptions = {}
 			const rawParams = params as GrepParams;
 			const context = coerceObviousBase10Int(rawParams.context, "context");
 			if (!context.ok) {
-				return {
-					content: [{ type: "text", text: context.message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "grep",
-							ok: false,
-							error: buildReadseekError("invalid-params-combo", context.message),
-						},
-					},
-				};
+				return buildToolErrorResult("grep", "invalid-params-combo", context.message);
 			}
 			const limit = coerceObviousBase10Int(rawParams.limit, "limit");
 			if (!limit.ok) {
-				return {
-					content: [{ type: "text", text: limit.message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "grep",
-							ok: false,
-							error: buildReadseekError("invalid-limit", limit.message),
-						},
-					},
-				};
+				return buildToolErrorResult("grep", "invalid-limit", limit.message);
 			}
 			const scopeContext = coerceObviousBase10Int(rawParams.scopeContext, "scopeContext");
 			if (!scopeContext.ok) {
-				return {
-					content: [{ type: "text", text: scopeContext.message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "grep",
-							ok: false,
-							error: buildReadseekError("invalid-params-combo", scopeContext.message),
-						},
-					},
-				};
+				return buildToolErrorResult("grep", "invalid-params-combo", scopeContext.message);
 			}
 			if (scopeContext.value !== undefined && rawParams.scope !== "symbol") {
 				const message = 'Invalid scopeContext: requires scope: "symbol". For normal surrounding-line context outside symbol scope, use the `context` parameter.';
-				return {
-					content: [{
-						type: "text",
-						text: message,
-					}],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "grep",
-							ok: false,
-							error: buildReadseekError("invalid-params-combo", message),
-						},
-					},
-				};
+				return buildToolErrorResult("grep", "invalid-params-combo", message);
 			}
 			if (scopeContext.value !== undefined && scopeContext.value < 0) {
 				const message = `Invalid scopeContext: expected a non-negative integer, received ${scopeContext.value}.`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "grep",
-							ok: false,
-							error: buildReadseekError("invalid-params-combo", message),
-						},
-					},
-				};
+				return buildToolErrorResult("grep", "invalid-params-combo", message);
 			}
 			const p: GrepParams = {
 				...rawParams,
@@ -716,13 +658,7 @@ if (p.scope === "symbol" && !summary) {
 			return new Text(clampLineToWidth(text, context.width), 0, 0);
 		},
 		renderResult(result: any, options: ToolRenderResultOptions, theme: any, ...rest: any[]) {
-			const context: { isPartial?: boolean; isError?: boolean; expanded?: boolean; cwd?: string; width?: number } =
-				rest[0] ?? options ?? {};
-			const isPartial = context.isPartial ?? (options as any)?.isPartial ?? false;
-			const isError = context.isError ?? false;
-			const expanded = isRendererExpanded(options as any, context as any);
-			const cwd = context.cwd ?? process.cwd();
-			const width = (context as any).width ?? (options as any)?.width;
+			const { isPartial, isError, expanded, cwd, width } = resolveRenderResultContext(options, rest);
 
 			if (isPartial) return new Text(clampLinesToWidth([summaryLine("pending search")], width).join("\n"), 0, 0);
 

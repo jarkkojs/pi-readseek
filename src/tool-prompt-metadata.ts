@@ -59,7 +59,6 @@ function promptFileName(promptUrl: URL): string {
 export function defineToolPromptMetadata(options: {
   promptUrl: URL;
   promptSnippet: string;
-  promptGuidelines: string[];
 }): ToolPromptMetadata {
   const prompt = loadPrompt(options.promptUrl);
   const fileName = promptFileName(options.promptUrl);
@@ -67,6 +66,6 @@ export function defineToolPromptMetadata(options: {
   return {
     description: compactDescription ?? firstPromptParagraph(prompt),
     promptSnippet: options.promptSnippet,
-    promptGuidelines: COMPACT_GUIDELINES[fileName] ?? options.promptGuidelines,
+    promptGuidelines: COMPACT_GUIDELINES[fileName] ?? [],
   };
 }

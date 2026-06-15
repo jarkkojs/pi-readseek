@@ -11,8 +11,9 @@ import { defineToolPromptMetadata } from "./tool-prompt-metadata.js";
 import { readFile as fsReadFile } from "fs/promises";
 import { normalizeToLF, stripBom, hasBareCarriageReturn } from "./edit-diff.js";
 import { ensureHashInit, escapeControlCharsForDisplay } from "./hashline.js";
-import { buildReadseekError, buildReadseekWarning, renderReadseekLines, type ReadseekLine, type ReadseekWarning } from "./readseek-value.js";
+import { buildReadseekWarning, buildToolErrorResult, renderReadseekLines, type ReadseekLine, type ReadseekWarning } from "./readseek-value.js";
 import { looksLikeBinary } from "./binary-detect.js";
+import { isSupportedImageBuffer } from "./image-detect.js";
 import { resolveToCwd } from "./path-utils.js";
 import { throwIfAborted } from "./runtime.js";
 import { getOrGenerateMap } from "./map-cache.js";
@@ -26,17 +27,11 @@ import { coerceObviousBase10Int } from "./coerce-obvious-int.js";
 import { readseekRead } from "./readseek-client.js";
 import { Text } from "@earendil-works/pi-tui";
 import { formatReadCallText, formatReadResultText } from "./read-render-helpers.js";
-import { clampLineToWidth, clampLinesToWidth, isRendererExpanded, linkToolPath, renderToolLabel, summaryLine, wrapReadHashlinesForWidth } from "./tui-render-utils.js";
+import { clampLineToWidth, clampLinesToWidth, linkToolPath, renderToolLabel, resolveRenderResultContext, summaryLine, wrapReadHashlinesForWidth } from "./tui-render-utils.js";
 
 const READ_PROMPT_METADATA = defineToolPromptMetadata({
 	promptUrl: new URL("../prompts/read.md", import.meta.url),
 	promptSnippet: "Read text files or images; text reads include hashline anchors and optional maps/symbol lookup",
-	promptGuidelines: [
-		"Use read instead of bash cat/head/tail/sed for file inspection.",
-		"Use read for images/screenshots; supported images return attachments like stock pi read.",
-		"Use read offset/limit, symbol, or map to keep large files focused.",
-		"Use read anchors as fresh inputs for edit.",
-	],
 });
 
 interface ReadParams {
@@ -57,55 +52,6 @@ function splitReadseekLines(text: string): string[] {
 	const withoutTrailingTerminator = text.endsWith("\n") ? text.slice(0, -1) : text;
 	return withoutTrailingTerminator.split("\n");
 }
-
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-
-function startsWithBytes(buffer: Buffer, bytes: number[]): boolean {
-	return buffer.length >= bytes.length && bytes.every((byte, index) => buffer[index] === byte);
-}
-
-function startsWithAscii(buffer: Buffer, offset: number, text: string): boolean {
-	if (buffer.length < offset + text.length) return false;
-	for (let index = 0; index < text.length; index++) {
-		if (buffer[offset + index] !== text.charCodeAt(index)) return false;
-	}
-	return true;
-}
-
-function readUint32BE(buffer: Buffer, offset: number): number {
-	return (
-		((buffer[offset] ?? 0) * 0x1000000) +
-		((buffer[offset + 1] ?? 0) << 16) +
-		((buffer[offset + 2] ?? 0) << 8) +
-		(buffer[offset + 3] ?? 0)
-	);
-}
-
-function isPng(buffer: Buffer): boolean {
-	return buffer.length >= 16 && readUint32BE(buffer, PNG_SIGNATURE.length) === 13 && startsWithAscii(buffer, 12, "IHDR");
-}
-
-function isAnimatedPng(buffer: Buffer): boolean {
-	let offset = PNG_SIGNATURE.length;
-	while (offset + 8 <= buffer.length) {
-		const chunkLength = readUint32BE(buffer, offset);
-		const chunkTypeOffset = offset + 4;
-		if (startsWithAscii(buffer, chunkTypeOffset, "acTL")) return true;
-		if (startsWithAscii(buffer, chunkTypeOffset, "IDAT")) return false;
-		const nextOffset = offset + 8 + chunkLength + 4;
-		if (nextOffset <= offset || nextOffset > buffer.length) return false;
-		offset = nextOffset;
-	}
-	return false;
-}
-
-function isSupportedImageBuffer(buffer: Buffer): boolean {
-	if (startsWithBytes(buffer, [0xff, 0xd8, 0xff])) return buffer[3] !== 0xf7;
-	if (startsWithBytes(buffer, PNG_SIGNATURE)) return isPng(buffer) && !isAnimatedPng(buffer);
-	if (startsWithAscii(buffer, 0, "GIF")) return true;
-	return startsWithAscii(buffer, 0, "RIFF") && startsWithAscii(buffer, 8, "WEBP");
-}
-
 
 export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}) {
 	const toolConfig = {
@@ -151,63 +97,19 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 			const rawParams = params as ReadParams;
 			const offset = coerceObviousBase10Int(rawParams.offset, "offset");
 			if (!offset.ok) {
-				return {
-					content: [{ type: "text", text: offset.message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-offset", offset.message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-offset", offset.message, { path: rawParams.path });
 			}
 			const limit = coerceObviousBase10Int(rawParams.limit, "limit");
 			if (!limit.ok) {
-				return {
-					content: [{ type: "text", text: limit.message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-limit", limit.message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-limit", limit.message, { path: rawParams.path });
 			}
 			if (limit.value !== undefined && limit.value < 1) {
 				const message = `Invalid limit: expected a positive integer, received ${limit.value}.`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-limit", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-limit", message, { path: rawParams.path });
 			}
 			if (offset.value !== undefined && offset.value < 1) {
 				const message = `Invalid offset: expected a positive integer, received ${offset.value}.`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-offset", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-offset", message, { path: rawParams.path });
 			}
 			const p = {
 				...rawParams,
@@ -218,18 +120,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 				const trimmedSymbol = typeof rawParams.symbol === "string" ? rawParams.symbol.trim() : "";
 				if (trimmedSymbol.length === 0) {
 					const message = "Invalid symbol: expected a non-empty string.";
-					return {
-						content: [{ type: "text", text: message }],
-						isError: true,
-						details: {
-							readseekValue: {
-								tool: "read",
-								ok: false,
-								path: rawParams.path,
-								error: buildReadseekError("invalid-params-combo", message),
-							},
-						},
-					};
+					return buildToolErrorResult("read", "invalid-params-combo", message, { path: rawParams.path });
 				}
 				p.symbol = trimmedSymbol;
 			}
@@ -246,63 +137,19 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 			throwIfAborted(signal);
 			if (p.symbol && (p.offset !== undefined || p.limit !== undefined)) {
 				const message = "Cannot combine symbol with offset/limit. Use one or the other.";
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-params-combo", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-params-combo", message, { path: rawParams.path });
 			}
 			if (p.bundle && !p.symbol) {
 				const message = 'Cannot use bundle without symbol. Use read({ path, symbol, bundle: "local" }).';
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-params-combo", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-params-combo", message, { path: rawParams.path });
 			}
 			if (p.bundle && p.map) {
 				const message = "Cannot combine bundle with map. Use one or the other.";
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-params-combo", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-params-combo", message, { path: rawParams.path });
 			}
 			if (p.map && p.symbol) {
 				const message = "Cannot combine map with symbol. Use one or the other.";
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("invalid-params-combo", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "invalid-params-combo", message, { path: rawParams.path });
 			}
 			// Delegate images to the built-in read tool
 			throwIfAborted(signal);
@@ -320,69 +167,18 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 				const code = err?.code;
 				if (code === "EISDIR") {
 					const message = `Path is a directory: ${rawPath}. Use ls to inspect directories.`;
-					return {
-						content: [{ type: "text", text: message }],
-						isError: true,
-						details: {
-							readseekValue: {
-								tool: "read",
-								ok: false,
-								path: rawParams.path,
-								error: buildReadseekError(
-									"path-is-directory",
-									message,
-									`Use ls(${JSON.stringify(rawPath)}) to inspect directories.`,
-								),
-							},
-						},
-					};
+					return buildToolErrorResult("read", "path-is-directory", message, { path: rawParams.path, hint: `Use ls(${JSON.stringify(rawPath)}) to inspect directories.` });
 				}
 				if (code === "EACCES" || code === "EPERM") {
 					const message = `Permission denied — cannot access: ${rawPath}`;
-					return {
-						content: [{ type: "text", text: message }],
-						isError: true,
-						details: {
-							readseekValue: {
-								tool: "read",
-								ok: false,
-								path: rawParams.path,
-								error: buildReadseekError("permission-denied", message),
-							},
-						},
-					};
+					return buildToolErrorResult("read", "permission-denied", message, { path: rawParams.path });
 				}
 				if (code === "ENOENT") {
 					const message = `File not found: ${rawPath}`;
-					return {
-						content: [{ type: "text", text: message }],
-						isError: true,
-						details: {
-							readseekValue: {
-								tool: "read",
-								ok: false,
-								path: rawParams.path,
-								error: buildReadseekError("file-not-found", message),
-							},
-						},
-					};
+					return buildToolErrorResult("read", "file-not-found", message, { path: rawParams.path });
 				}
 				const message = `File not readable: ${rawPath}${err?.message ? ` — ${err.message}` : ""}`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("fs-error", message, undefined, {
-								fsCode: code,
-								fsMessage: err?.message,
-							}),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "fs-error", message, { path: rawParams.path, details: { fsCode: code, fsMessage: err?.message } });
 			}
 
 			if (isSupportedImageBuffer(rawBuffer)) {
@@ -399,18 +195,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 			let endIdx = p.limit !== undefined ? Math.min(startLine - 1 + p.limit, total) : total;
 			if (p.offset !== undefined && startLine > total) {
 				const message = `[offset ${p.offset} is past end of file (${total} lines)]`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("offset-past-end", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "offset-past-end", message, { path: rawParams.path });
 			}
 			let symbolMatch: SymbolMatch | undefined;
 			let symbolFileMap: Awaited<ReturnType<typeof getOrGenerateMap>> | null = null;
@@ -550,23 +335,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 			} catch (err: any) {
 				const detail = err?.message ? ` — ${err.message}` : "";
 				const message = `readseek failed while reading ${rawPath}${detail}`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError(
-								"readseek-error",
-								message,
-								"Ensure @jarkkojs/readseek and its npm platform package are installed.",
-								{ message: err?.message },
-							),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "readseek-error", message, { path: rawParams.path, hint: "Ensure @jarkkojs/readseek and its npm platform package are installed.", details: { message: err?.message } });
 			}
 			const expectedLineCount = Math.max(0, endIdx - startLine + 1);
 			const invalidLine = readseekOutput.hashlines.find((line, index) => line.line !== startLine + index);
@@ -574,18 +343,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 				const message = invalidLine
 					? `readseek returned non-sequential line ${invalidLine.line} for requested range ${startLine}-${endIdx}`
 					: `readseek returned ${readseekOutput.hashlines.length} lines for requested range ${startLine}-${endIdx} (${expectedLineCount} expected)`;
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: {
-						readseekValue: {
-							tool: "read",
-							ok: false,
-							path: rawParams.path,
-							error: buildReadseekError("readseek-output-mismatch", message),
-						},
-					},
-				};
+				return buildToolErrorResult("read", "readseek-output-mismatch", message, { path: rawParams.path });
 			}
 			const readseekLines: ReadseekLine[] = readseekOutput.hashlines.map((line) => ({
 				line: line.line,
@@ -708,11 +466,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 			return new Text(clampLineToWidth(text, context.width), 0, 0);
 		},
 		renderResult(result: any, options: ToolRenderResultOptions, theme: any, ...rest: any[]) {
-			const context: { isPartial?: boolean; isError?: boolean; expanded?: boolean; cwd?: string; width?: number } = rest[0] ?? options ?? {};
-			const isPartial = context.isPartial ?? (options as any)?.isPartial ?? false;
-			const isError = context.isError ?? false;
-			const expanded = isRendererExpanded(options as any, context as any);
-			const width = context.width ?? (options as any)?.width;
+			const { isPartial, isError, expanded, width } = resolveRenderResultContext(options, rest);
 			if (isPartial) return new Text(clampLinesToWidth([summaryLine("pending read")], width).join("\n"), 0, 0);
 
 			const content = result.content?.[0];

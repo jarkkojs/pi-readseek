@@ -19,7 +19,7 @@ import { resolveSyntaxValidateMode, type SyntaxValidateOptions } from "./syntax-
 import { replaceSymbol } from "./replace-symbol.js";
 import { buildEditPreviewKey, buildPendingEditPreviewData, resolvePendingDiffPreview, type PendingDiffPreviewResult } from "./pending-diff-preview.js";
 import { buildDiffData, type DiffBlockRange } from "./diff-data.js";
-import { clampLineToWidth, clampLinesToWidth, isRendererExpanded, linkToolPath, summaryLine } from "./tui-render-utils.js";
+import { clampLineToWidth, clampLinesToWidth, linkToolPath, resolveRenderResultContext, summaryLine } from "./tui-render-utils.js";
 import { DiffPreviewComponent } from "./tui-diff-component.js";
 
 import { resolveEditDiffDisplay } from "./readseek-settings.js";
@@ -86,11 +86,6 @@ type HashlineParams = Static<typeof hashlineEditSchema>;
 const EDIT_PROMPT_METADATA = defineToolPromptMetadata({
 	promptUrl: new URL("../prompts/edit.md", import.meta.url),
 	promptSnippet: "Edit files using hash-verified anchors from read/grep/search/write",
-	promptGuidelines: [
-		"Use edit for changes to existing files; read or search first and copy fresh LINE:HASH anchors.",
-		"Prefer edit anchored set_line, replace_lines, and insert_after over shell rewrites.",
-		"Use edit replace only when anchored edits are impractical.",
-	],
 });
 
 function buildEditError(
@@ -644,13 +639,9 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 			return textComponent;
 		},
 			renderResult(result: any, options: ToolRenderResultOptions, theme: any, ...rest: any[]) {
-			const context: { isPartial?: boolean; isError?: boolean; expanded?: boolean; lastComponent?: any; width?: number } =
-				rest[0] ?? options ?? {};
-			const isPartial = context.isPartial ?? (options as any)?.isPartial ?? false;
-			const isError = context.isError ?? false;
+			const { isPartial, isError, expanded: baseExpanded, width, context } = resolveRenderResultContext(options, rest);
 
 			if (isPartial) {
-				const width = (context as any).width ?? (options as any)?.width;
 				return new Text(clampLinesToWidth([summaryLine("pending edit")], width).join("\n"), 0, 0);
 			}
 
@@ -678,8 +669,7 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 				semanticClassification: semanticClassification as any,
 			});
 
-			const expanded = isRendererExpanded(options as any, context as any) || resolveEditDiffDisplay() === "expanded";
-			const width = (context as any).width ?? (options as any)?.width;
+			const expanded = baseExpanded || resolveEditDiffDisplay() === "expanded";
 			const diffData = (details as any).diffData;
 			const stats = diffData?.stats ?? { added: 0, removed: 0 };
 			let text = "";

@@ -5,12 +5,12 @@ import path from "node:path";
 import { stat as fsStat } from "node:fs/promises";
 import { defineToolPromptMetadata } from "./tool-prompt-metadata.js";
 import { escapeControlCharsForDisplay } from "./hashline.js";
-import { buildReadseekError, type ReadseekLine } from "./readseek-value.js";
+import { buildToolErrorResult, type ReadseekLine } from "./readseek-value.js";
 import { resolveToCwd } from "./path-utils.js";
 import { isReadseekAvailable, readseekSearch, type ReadseekHashline, type ReadseekSearchFileOutput } from "./readseek-client.js";
 import { buildSgOutput } from "./sg-output.js";
 
-import { clampLineToWidth, clampLinesToWidth, isRendererExpanded, renderToolLabel, summaryLine } from "./tui-render-utils.js";
+import { clampLineToWidth, clampLinesToWidth, renderToolLabel, resolveRenderResultContext, summaryLine } from "./tui-render-utils.js";
 
 type SgParams = { pattern: string; lang?: string; path?: string; cached?: boolean; others?: boolean; ignored?: boolean };
 
@@ -47,11 +47,6 @@ export function mergeRanges(ranges: SgRange[]): SgRange[] {
 const SG_PROMPT_METADATA = defineToolPromptMetadata({
   promptUrl: new URL("../prompts/sg.md", import.meta.url),
   promptSnippet: "Search code structurally with readseek and return edit-ready anchors",
-  promptGuidelines: [
-    "Use search when text search is too broad or brittle and the query depends on code shape.",
-    "Use search for calls, imports, declarations, JSX, and similar syntax patterns.",
-    "Use grep instead of search for plain text search.",
-  ],
 });
 
 export function isSgAvailable(): boolean {
@@ -128,17 +123,7 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
       const p = params as SgParams;
       if (p.ignored && !p.others) {
         const message = "Error: search parameter 'ignored' requires 'others'";
-        return {
-          content: [{ type: "text", text: message }],
-          isError: true,
-          details: {
-            readseekValue: {
-              tool: "search",
-              ok: false,
-              error: buildReadseekError("invalid-parameter", message),
-            },
-          },
-        };
+        return buildToolErrorResult("search", "invalid-parameter", message);
       }
       const searchPath = resolveToCwd(p.path ?? ".", ctx.cwd);
       let searchPathIsFile = false;
@@ -149,47 +134,14 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
       } catch (err: any) {
         if (err?.code === "ENOENT") {
           const message = `Error: path '${p.path ?? "."}' does not exist`;
-          return {
-            content: [{ type: "text", text: message }],
-            isError: true,
-            details: {
-              readseekValue: {
-                tool: "search",
-                ok: false,
-                path: p.path ?? searchPath,
-                error: buildReadseekError("path-not-found", message),
-              },
-            },
-          };
+          return buildToolErrorResult("search", "path-not-found", message, { path: p.path ?? searchPath });
         }
         if (err?.code === "EACCES" || err?.code === "EPERM") {
           const message = `Error: permission denied for path '${p.path ?? "."}'`;
-          return {
-            content: [{ type: "text", text: message }],
-            isError: true,
-            details: {
-              readseekValue: {
-                tool: "search",
-                ok: false,
-                path: p.path ?? searchPath,
-                error: buildReadseekError("permission-denied", message),
-              },
-            },
-          };
+          return buildToolErrorResult("search", "permission-denied", message, { path: p.path ?? searchPath });
         }
         const message = `Error: could not access path '${p.path ?? "."}': ${err?.message ?? String(err)}`;
-        return {
-          content: [{ type: "text", text: message }],
-          isError: true,
-          details: {
-            readseekValue: {
-              tool: "search",
-              ok: false,
-              path: p.path ?? searchPath,
-              error: buildReadseekError("fs-error", message, undefined, { fsCode: err?.code, fsMessage: err?.message }),
-            },
-          },
-        };
+        return buildToolErrorResult("search", "fs-error", message, { path: p.path ?? searchPath, details: { fsCode: err?.code, fsMessage: err?.message } });
       }
 
       try {
@@ -260,19 +212,12 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
       } catch (err: any) {
         const message = String(err?.message || err);
         const missingReadseek = err?.code === "ENOENT" || /Cannot find package|Cannot find module|no such file/i.test(message);
-        return {
-          content: [{ type: "text", text: message }],
-          isError: true,
-          details: {
-            readseekValue: {
-              tool: "search",
-              ok: false,
-              error: missingReadseek
-                ? buildReadseekError("readseek-not-installed", message, "Run npm install to install @jarkkojs/readseek.")
-                : buildReadseekError("readseek-execution-error", message),
-            },
-          },
-        };
+        return buildToolErrorResult(
+          "search",
+          missingReadseek ? "readseek-not-installed" : "readseek-execution-error",
+          message,
+          missingReadseek ? { hint: "Run npm install to install @jarkkojs/readseek." } : {},
+        );
       }
     },
     renderCall(args: any, theme: any, ...rest: any[]) {
@@ -285,13 +230,7 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
       return new Text(clampLineToWidth(text, context.width), 0, 0);
     },
     renderResult(result: any, options: ToolRenderResultOptions, theme: any, ...rest: any[]) {
-      const context: { isPartial?: boolean; isError?: boolean; expanded?: boolean; cwd?: string; width?: number } =
-        rest[0] ?? options ?? {};
-      const isPartial = context.isPartial ?? (options as any)?.isPartial ?? false;
-      const isError = context.isError ?? false;
-      const expanded = isRendererExpanded(options as any, context as any);
-      const cwd = context.cwd ?? process.cwd();
-      const width = (context as any).width ?? (options as any)?.width;
+      const { isPartial, isError, expanded, cwd, width } = resolveRenderResultContext(options, rest);
 
       if (isPartial) return new Text(clampLinesToWidth([summaryLine("pending search")], width).join("\n"), 0, 0);
 

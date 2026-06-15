@@ -66,11 +66,6 @@ const MAX_BYTES = 50 * 1024;
 const WRITE_PROMPT_METADATA = defineToolPromptMetadata({
   promptUrl: new URL("../prompts/write.md", import.meta.url),
   promptSnippet: "Create or overwrite a complete file and return edit anchors",
-  promptGuidelines: [
-    "Use write to create new files or intentionally replace whole files.",
-    "Use edit instead of write for small changes or appends to existing files.",
-    "Remember write overwrites existing files without confirmation.",
-  ],
 });
 
 type WriteDiffFields = {

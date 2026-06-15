@@ -37,6 +37,33 @@ export function isRendererExpanded(options?: { expanded?: boolean }, context?: {
   return context?.expanded ?? options?.expanded ?? false;
 }
 
+export interface RenderResultContext {
+  isPartial: boolean;
+  isError: boolean;
+  expanded: boolean;
+  width: number | undefined;
+  cwd: string;
+  context: Record<string, any>;
+}
+
+/**
+ * Resolve the shared render context for a tool's `renderResult`, which may
+ * receive its context either as a trailing `rest[0]` argument or folded into
+ * `options`. Returns the common flags plus the raw context object for callers
+ * that need fields beyond the common set (e.g. `lastComponent`).
+ */
+export function resolveRenderResultContext(options: any, rest: any[]): RenderResultContext {
+  const context = rest[0] ?? options ?? {};
+  return {
+    isPartial: context.isPartial ?? options?.isPartial ?? false,
+    isError: context.isError ?? false,
+    expanded: isRendererExpanded(options, context),
+    width: context.width ?? options?.width,
+    cwd: context.cwd ?? process.cwd(),
+    context,
+  };
+}
+
 export function normalizeWidth(width: unknown, fallback = 80): number {
   return typeof width === "number" && Number.isFinite(width) && width > 0 ? Math.floor(width) : fallback;
 }
