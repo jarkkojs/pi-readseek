@@ -48,144 +48,16 @@ function invalid(source: string, path: string): ReadseekSettingsWarning {
   return { source, path, message: `Invalid readseek setting at ${path}` };
 }
 
-function readJsonObjectEnd(text: string, open: number): number {
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let i = open; i < text.length; i += 1) {
-    const char = text[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (char === "\\") escaped = true;
-      else if (char === '"') inString = false;
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-    } else if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) return i;
-    }
-  }
-
-  return -1;
-}
-
-function readJsonStringEnd(text: string, quote: number): number {
-  let escaped = false;
-  for (let i = quote + 1; i < text.length; i += 1) {
-    const char = text[i];
-    if (escaped) escaped = false;
-    else if (char === "\\") escaped = true;
-    else if (char === '"') return i;
-  }
-  return -1;
-}
-
-function readTopLevelObjectBodies(rawText: string, section: string): string[] {
-  const bodies: string[] = [];
-  let depth = 0;
-
-  for (let i = 0; i < rawText.length; i += 1) {
-    const char = rawText[i];
-    if (char === '"') {
-      const end = readJsonStringEnd(rawText, i);
-      if (end < 0) return bodies;
-
-      if (depth === 1) {
-        const fieldName = rawText.slice(i + 1, end);
-        let cursor = end + 1;
-        while (/\s/.test(rawText[cursor] ?? "")) cursor += 1;
-
-        if (rawText[cursor] === ":") {
-          cursor += 1;
-          while (/\s/.test(rawText[cursor] ?? "")) cursor += 1;
-          if (fieldName === section && rawText[cursor] === "{") {
-            const objectEnd = readJsonObjectEnd(rawText, cursor);
-            if (objectEnd < 0) return bodies;
-            bodies.push(rawText.slice(cursor + 1, objectEnd));
-            i = objectEnd;
-            continue;
-          }
-        }
-      }
-      i = end;
-    } else if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth = Math.max(0, depth - 1);
-    }
-  }
-
-  return bodies;
-}
-
-function rawFieldTokens(rawText: string, path: string): string[] {
-  const [section, key] = path.split(".");
-  const bodies = readTopLevelObjectBodies(rawText, section);
-  if (bodies.length !== 1) return [];
-
-  const body = bodies[0];
-  const tokens: string[] = [];
-  let depth = 0;
-
-  for (let i = 0; i < body.length; i += 1) {
-    const char = body[i];
-    if (char === '"') {
-      const end = readJsonStringEnd(body, i);
-      if (end < 0) return tokens;
-
-      if (depth === 0) {
-        const fieldName = body.slice(i + 1, end);
-        let cursor = end + 1;
-        while (/\s/.test(body[cursor] ?? "")) cursor += 1;
-
-        if (body[cursor] === ":") {
-          cursor += 1;
-          while (/\s/.test(body[cursor] ?? "")) cursor += 1;
-          if (fieldName === key) {
-            const valueStart = cursor;
-            while (cursor < body.length && !/[,}\s]/.test(body[cursor])) cursor += 1;
-            tokens.push(body.slice(valueStart, cursor));
-          }
-        }
-      }
-      i = end;
-    } else if (char === "{" || char === "[") {
-      depth += 1;
-    } else if (char === "}" || char === "]") {
-      depth = Math.max(0, depth - 1);
-    }
-  }
-
-  return tokens;
-}
-
-function isStrictJsonPositiveInteger(rawText: string, path: string, value: unknown): value is number {
-  const tokens = rawFieldTokens(rawText, path);
-  return (
-    typeof value === "number" &&
-    Number.isSafeInteger(value) &&
-    value > 0 &&
-    tokens.length === 1 &&
-    /^[1-9][0-9]*$/.test(tokens[0])
-  );
-}
-
 function readPositive(
   raw: Record<string, unknown>,
   key: string,
   path: string,
   source: string,
-  rawText: string,
   warnings: ReadseekSettingsWarning[],
 ): number | undefined {
   if (!(key in raw)) return undefined;
-  if (isStrictJsonPositiveInteger(rawText, path, raw[key])) return raw[key];
+  const val = raw[key];
+  if (typeof val === "number" && Number.isSafeInteger(val) && val > 0) return val;
   warnings.push(invalid(source, path));
   return undefined;
 }
@@ -203,16 +75,16 @@ function readBoolean(
   return undefined;
 }
 
-function validateSettings(raw: unknown, source: string, rawText: string): ReadseekSettingsResult {
+function validateSettings(raw: unknown, source: string): ReadseekSettingsResult {
   const settings: ReadseekJsonSettings = {};
   const warnings: ReadseekSettingsWarning[] = [];
   if (!isRecord(raw)) return { settings, warnings };
 
   if (isRecord(raw.grep)) {
     const grep: NonNullable<ReadseekJsonSettings["grep"]> = {};
-    const maxLines = readPositive(raw.grep, "maxLines", "grep.maxLines", source, rawText, warnings);
+    const maxLines = readPositive(raw.grep, "maxLines", "grep.maxLines", source, warnings);
     if (maxLines !== undefined) grep.maxLines = maxLines;
-    const maxBytes = readPositive(raw.grep, "maxBytes", "grep.maxBytes", source, rawText, warnings);
+    const maxBytes = readPositive(raw.grep, "maxBytes", "grep.maxBytes", source, warnings);
     if (maxBytes !== undefined) grep.maxBytes = maxBytes;
     if (Object.keys(grep).length > 0) settings.grep = grep;
   }
@@ -246,7 +118,7 @@ function readSettingsFile(path: string): ReadseekSettingsResult {
 
   try {
     const text = readFileSync(path, "utf8");
-    return validateSettings(JSON.parse(text) as unknown, path, text);
+    return validateSettings(JSON.parse(text) as unknown, path);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return { settings: {}, warnings: [{ source: path, message: `Invalid JSON: ${message}` }] };
