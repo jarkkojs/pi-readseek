@@ -146,8 +146,6 @@ export function parseDifftJson(json: any): DifftClassifyResult | null {
   }
 
   return { classification: "semantic", movedBlocks };
-
-  return { classification: "semantic", movedBlocks };
 }
 
 export async function runDifftastic(
