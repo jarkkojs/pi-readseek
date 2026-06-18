@@ -1,4 +1,5 @@
-import { getCapabilities, hyperlink, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { getCapabilities, hyperlink, Text, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import { relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveToCwd } from "./path-utils.js";
 
@@ -153,4 +154,57 @@ export function wrapReadHashlinesForWidth(text: string, width: number | undefine
     }
   }
   return output.join("\n");
+}
+
+export interface AnchoredFilesLabels {
+  pendingLabel: string;
+  emptyLabel: string;
+  unitSingular: string;
+  unitPlural: string;
+}
+
+/**
+ * Render the result summary shared by the anchored-files search tools (search,
+ * refs): a pending line, an error first-line/expanded body, an empty-result
+ * line, or a `<count> <unit> in <n> files` summary with an expandable per-file
+ * list. The four call-site differences are supplied via {@link labels}.
+ */
+export function renderAnchoredFilesResult(
+  result: any,
+  options: any,
+  theme: RendererTheme,
+  rest: any[],
+  labels: AnchoredFilesLabels,
+): Text {
+  const { isPartial, isError, expanded, cwd, width } = resolveRenderResultContext(options, rest);
+
+  if (isPartial) return new Text(clampLinesToWidth([summaryLine(labels.pendingLabel)], width).join("\n"), 0, 0);
+
+  const content = result.content?.[0];
+  const textContent = content?.type === "text" ? content.text : "";
+  if (isError || result.isError) {
+    const firstLine = textContent.split("\n")[0] || "Error";
+    const body = expanded && textContent ? textContent : firstLine;
+    return new Text(clampLinesToWidth(summaryLine(body).split("\n"), width).join("\n"), 0, 0);
+  }
+
+  const readseekValue = (result.details as any)?.readseekValue as
+    | { files: Array<{ path: string; lines: any[] }> }
+    | undefined;
+  const files = readseekValue?.files ?? [];
+  if (files.length === 0) return new Text(summaryLine(labels.emptyLabel), 0, 0);
+
+  const fileCount = files.length;
+  const total = files.reduce((sum: number, f: any) => sum + f.lines.length, 0);
+  const unitWord = total === 1 ? labels.unitSingular : labels.unitPlural;
+  const fileWord = fileCount === 1 ? "file" : "files";
+  let text = summaryLine(`${total} ${unitWord} in ${fileCount} ${fileWord}`, { hidden: !expanded });
+  if (expanded) {
+    for (const file of files.slice(0, 20)) {
+      const display = relative(cwd, file.path) || file.path;
+      text += "\n" + theme.fg("dim", `  ${display} (${file.lines.length})`);
+    }
+    if (files.length > 20) text += "\n" + theme.fg("muted", `  … and ${files.length - 20} more files`);
+  }
+  return new Text(clampLinesToWidth(text.split("\n"), width).join("\n"), 0, 0);
 }

@@ -9,7 +9,7 @@ import { resolveToCwd } from "./path-utils.js";
 import { isReadseekAvailable, readseekSearch, type ReadseekHashline, type ReadseekSearchFileOutput } from "./readseek-client.js";
 import { buildSgOutput } from "./sg-output.js";
 
-import { clampLineToWidth, clampLinesToWidth, renderToolLabel, resolveRenderResultContext, summaryLine } from "./tui-render-utils.js";
+import { clampLineToWidth, renderAnchoredFilesResult, renderToolLabel } from "./tui-render-utils.js";
 
 type SgParams = { pattern: string; lang?: string; path?: string; cached?: boolean; others?: boolean; ignored?: boolean };
 
@@ -223,35 +223,12 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
       return new Text(clampLineToWidth(text, context.width), 0, 0);
     },
     renderResult(result: any, options: ToolRenderResultOptions, theme: any, ...rest: any[]) {
-      const { isPartial, isError, expanded, cwd, width } = resolveRenderResultContext(options, rest);
-
-      if (isPartial) return new Text(clampLinesToWidth([summaryLine("pending search")], width).join("\n"), 0, 0);
-
-      const content = result.content?.[0];
-      const textContent = content?.type === "text" ? content.text : "";
-      if (isError || result.isError) {
-        const firstLine = textContent.split("\n")[0] || "Error";
-        const body = expanded && textContent ? textContent : firstLine;
-        return new Text(clampLinesToWidth(summaryLine(body).split("\n"), width).join("\n"), 0, 0);
-      }
-      const readseekValue = (result.details as any)?.readseekValue as
-        | { tool: "search"; files: Array<{ path: string; lines: any[] }> }
-        | undefined;
-      const files = readseekValue?.files ?? [];
-      if (files.length === 0) return new Text(summaryLine("no matches"), 0, 0);
-      const fileCount = files.length;
-      const totalMatches = files.reduce((sum: number, f: any) => sum + f.lines.length, 0);
-      const matchWord = totalMatches === 1 ? "match" : "matches";
-      const fileWord = fileCount === 1 ? "file" : "files";
-      let text = summaryLine(`${totalMatches} ${matchWord} in ${fileCount} ${fileWord}`, { hidden: files.length > 0 && !expanded });
-      if (expanded) {
-        for (const file of files.slice(0, 20)) {
-          const display = path.relative(cwd, file.path) || file.path;
-          text += "\n" + theme.fg("dim", `  ${display} (${file.lines.length})`);
-        }
-        if (files.length > 20) text += "\n" + theme.fg("muted", `  … and ${files.length - 20} more files`);
-      }
-      return new Text(clampLinesToWidth(text.split("\n"), width).join("\n"), 0, 0);
+      return renderAnchoredFilesResult(result, options, theme, rest, {
+        pendingLabel: "pending search",
+        emptyLabel: "no matches",
+        unitSingular: "match",
+        unitPlural: "matches",
+      });
     },
   } satisfies Parameters<ExtensionAPI["registerTool"]>[0] & { ptc: typeof toolConfig };
 
