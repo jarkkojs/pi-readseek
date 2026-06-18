@@ -4,8 +4,7 @@ import { Type } from "@sinclair/typebox";
 import path from "node:path";
 import { stat as fsStat } from "node:fs/promises";
 import { defineToolPromptMetadata } from "./tool-prompt-metadata.js";
-import { escapeControlCharsForDisplay } from "./hashline.js";
-import { buildToolErrorResult, type ReadseekLine } from "./readseek-value.js";
+import { buildReadseekLineWithHash, buildToolErrorResult, type ReadseekLine } from "./readseek-value.js";
 import { resolveToCwd } from "./path-utils.js";
 import { isReadseekAvailable, readseekSearch, type ReadseekHashline, type ReadseekSearchFileOutput } from "./readseek-client.js";
 import { buildSgOutput } from "./sg-output.js";
@@ -58,13 +57,7 @@ interface SgToolOptions {
 }
 
 function readseekLineFromSearch(line: ReadseekHashline): ReadseekLine {
-  return {
-    line: line.line,
-    hash: line.hash,
-    anchor: `${line.line}:${line.hash}`,
-    raw: line.text,
-    display: escapeControlCharsForDisplay(line.text),
-  };
+  return buildReadseekLineWithHash(line.line, line.hash, line.text);
 }
 
 function linesFromSearchResult(result: ReadseekSearchFileOutput, ranges: SgRange[]): ReadseekLine[] {

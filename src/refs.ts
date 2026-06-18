@@ -4,8 +4,7 @@ import { Type } from "@sinclair/typebox";
 import path from "node:path";
 import { stat as fsStat } from "node:fs/promises";
 import { defineToolPromptMetadata } from "./tool-prompt-metadata.js";
-import { escapeControlCharsForDisplay } from "./hashline.js";
-import { buildToolErrorResult } from "./readseek-value.js";
+import { buildReadseekLineWithHash, buildToolErrorResult } from "./readseek-value.js";
 import { resolveToCwd } from "./path-utils.js";
 import { isReadseekAvailable, readseekRefs, type ReadseekReference } from "./readseek-client.js";
 import { buildRefsOutput, type RefsOutputFile, type RefsOutputLine } from "./refs-output.js";
@@ -39,11 +38,7 @@ interface RefsToolOptions {
 
 function refsLine(reference: ReadseekReference): RefsOutputLine {
   return {
-    line: reference.line,
-    hash: reference.line_hash,
-    anchor: `${reference.line}:${reference.line_hash}`,
-    raw: reference.text,
-    display: escapeControlCharsForDisplay(reference.text),
+    ...buildReadseekLineWithHash(reference.line, reference.line_hash, reference.text),
     enclosingSymbol: reference.enclosingSymbol,
   };
 }

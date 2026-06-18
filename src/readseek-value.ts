@@ -55,8 +55,12 @@ export interface ReadseekEditResult {
   semanticSummary?: SemanticSummary;
 }
 
-export function buildReadseekLine(line: number, raw: string): ReadseekLine {
-  const hash = computeLineHash(line, raw);
+/**
+ * Build a {@link ReadseekLine} from an already-known hash. Use this when the
+ * hash is supplied by readseek (search, refs) rather than computed from `raw`;
+ * {@link buildReadseekLine} delegates here after hashing.
+ */
+export function buildReadseekLineWithHash(line: number, hash: string, raw: string): ReadseekLine {
   return {
     line,
     hash,
@@ -64,6 +68,10 @@ export function buildReadseekLine(line: number, raw: string): ReadseekLine {
     raw,
     display: escapeControlCharsForDisplay(raw),
   };
+}
+
+export function buildReadseekLine(line: number, raw: string): ReadseekLine {
+  return buildReadseekLineWithHash(line, computeLineHash(line, raw), raw);
 }
 
 export function buildReadseekLines(startLine: number, rawLines: string[]): ReadseekLine[] {
