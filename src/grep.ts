@@ -313,6 +313,16 @@ export async function executeGrep(opts: ExecuteGrepOptions): Promise<any> {
 	let candidateUnparsedCount = 0;
 	const candidateLinePattern = /^.+(?::|-)\d+(?::|-)\s/;
 
+	const addSummaryMatch = (displayPath: string, absolutePath: string) => {
+		let group = groupsByPath.get(displayPath);
+		if (!group) {
+			group = { displayPath, absolutePath, matchCount: 0, entries: [] };
+			groupsByPath.set(displayPath, group);
+		}
+		group.matchCount++;
+		totalMatches++;
+	};
+
 	const addEntry = (displayPath: string, absolutePath: string, kind: "match" | "context", line: ReadseekLine) => {
 		let group = groupsByPath.get(displayPath);
 		if (!group) {
@@ -341,6 +351,12 @@ export async function executeGrep(opts: ExecuteGrepOptions): Promise<any> {
 		}
 		parsedCount++;
 		const absolute = toAbsolutePath(parsed.displayPath);
+		if (p.summary) {
+			if (parsed.kind === "match") {
+				addSummaryMatch(parsed.displayPath, absolute);
+			}
+			continue;
+		}
 		const fileLines = await getFileLines(absolute);
 		if (fileLines === undefined) continue;
 		// Bare-CR remapping: rg treats the entire bare-CR file as line 1, and the
@@ -379,6 +395,25 @@ export async function executeGrep(opts: ExecuteGrepOptions): Promise<any> {
 		});
 	}
 
+	if (p.summary && parsedCount === 0 && candidateUnparsedCount > 0) {
+		const passthroughDetails =
+			typeof result.details === "object" && result.details !== null
+				? (result.details as Record<string, unknown>)
+				: {};
+		return {
+			...result,
+			details: {
+				...passthroughDetails,
+				readseekValue: {
+					tool: "grep",
+					summary: true,
+					totalMatches: 0,
+					records: [],
+				},
+			},
+		};
+	}
+
 	if (parsedCount === 0 && candidateUnparsedCount > 0) {
 		const warning =
 			"[hashline grep passthrough] Unparsed grep format; returned original output.";
@@ -405,7 +440,7 @@ export async function executeGrep(opts: ExecuteGrepOptions): Promise<any> {
 		};
 	}
 
-	const summary = p.summary;
+	const summary = !!p.summary;
 	const effectiveLimit = typeof p.limit === "number" ? p.limit : 100;
 	const groups = [...groupsByPath.values()];
 	for (const group of groups) {
