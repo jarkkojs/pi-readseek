@@ -17,14 +17,17 @@ interface MapCacheGlobalState {
 
 const MAP_CACHE_STATE_KEY = Symbol.for("pi-readseek.mapCacheState.v1");
 
+type MapCacheGlobalSlots = typeof globalThis & Record<symbol, MapCacheGlobalState | undefined>;
+
 function getMapCacheState(): MapCacheGlobalState {
-	const globalObject = globalThis as any;
-	globalObject[MAP_CACHE_STATE_KEY] ??= {
+	const globalObject = globalThis as MapCacheGlobalSlots;
+	const state = globalObject[MAP_CACHE_STATE_KEY] ?? {
 		cache: new Map<string, CacheEntry>(),
 		inflight: new Map<string, Promise<FileMap | null>>(),
 		maxSize: MAP_CACHE_MAX_SIZE,
-	} satisfies MapCacheGlobalState;
-	return globalObject[MAP_CACHE_STATE_KEY] as MapCacheGlobalState;
+	};
+	globalObject[MAP_CACHE_STATE_KEY] = state;
+	return state;
 }
 
 function rememberInMemory(absPath: string, entry: CacheEntry): void {

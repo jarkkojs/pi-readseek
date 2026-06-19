@@ -71,13 +71,16 @@ interface HashlineGlobalState {
 
 const HASHLINE_STATE_KEY = Symbol.for("pi-readseek.hashlineState.v1");
 
+type HashlineGlobalSlots = typeof globalThis & Record<symbol, HashlineGlobalState | undefined>;
+
 function getHashlineState(): HashlineGlobalState {
-	const globalObject = globalThis as any;
-	globalObject[HASHLINE_STATE_KEY] ??= {
+	const globalObject = globalThis as HashlineGlobalSlots;
+	const state = globalObject[HASHLINE_STATE_KEY] ?? {
 		h32Fn: null,
 		initPromise: null,
-	} satisfies HashlineGlobalState;
-	return globalObject[HASHLINE_STATE_KEY] as HashlineGlobalState;
+	};
+	globalObject[HASHLINE_STATE_KEY] = state;
+	return state;
 }
 
 export async function ensureHashInit(): Promise<void> {
