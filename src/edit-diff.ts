@@ -37,7 +37,6 @@ export function stripBom(content: string): { bom: string; text: string } {
  * These cause line-count mismatches between normalizeToLF and external tools (ripgrep, wc).
  */
 export function hasBareCarriageReturn(content: string): boolean {
-	// Remove all \r\n first, then check if any \r remains
 	return content.replace(/\r\n/g, "").includes("\r");
 }
 
