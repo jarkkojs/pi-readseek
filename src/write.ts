@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, relative } from "node:path";
 
 import { withFileMutationQueue, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -95,7 +94,6 @@ export interface WriteResult extends WriteDiffFields {
 
 async function readPreviousTextForDiff(filePath: string): Promise<string> {
   try {
-    if (!existsSync(filePath)) return "";
     const previous = await readFile(filePath);
     if (looksLikeBinary(previous)) return "";
     return previous.toString("utf-8");
@@ -225,18 +223,18 @@ export async function executeWrite(opts: {
     };
   }
   const previousContent = await readPreviousTextForDiff(filePath);
-  const existedBeforeWrite = existsSync(filePath);
+  const existedBeforeWrite = await access(filePath).then(() => true, () => false);
 
   // Create parent directories
   try {
-    mkdirSync(dirname(filePath), { recursive: true });
+    await mkdir(dirname(filePath), { recursive: true });
   } catch (err: any) {
     err.__phase = "mkdir";
     throw err;
   }
   // Write file
   try {
-    writeFileSync(filePath, content, "utf-8");
+    await writeFile(filePath, content, "utf-8");
   } catch (err: any) {
     err.__phase = "write";
     throw err;
