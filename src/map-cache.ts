@@ -29,7 +29,7 @@ function getMapCacheState(): MapCacheGlobalState {
 	globalObject[MAP_CACHE_STATE_KEY] = state;
 	return state;
 }
-/** Move an existing entry to the most-recently-used position (Map insertion-order tail). */
+// Move an existing entry to the most-recently-used position (Map insertion-order tail).
 function touchMapEntry<K, V>(map: Map<K, V>, key: K, value: V): void {
 	map.delete(key);
 	map.set(key, value);
