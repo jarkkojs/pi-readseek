@@ -1,5 +1,5 @@
-import * as os from "os";
-import { isAbsolute, resolve as resolvePath } from "path";
+import { homedir } from "node:os";
+import { isAbsolute, resolve as resolvePath } from "node:path";
 
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 
@@ -13,8 +13,8 @@ function normalizeAtPrefix(filePath: string): string {
 
 function expandPath(filePath: string): string {
 	const normalized = normalizeUnicodeSpaces(normalizeAtPrefix(filePath));
-	if (normalized === "~") return os.homedir();
-	if (normalized.startsWith("~/")) return os.homedir() + normalized.slice(1);
+	if (normalized === "~") return homedir();
+	if (normalized.startsWith("~/")) return homedir() + normalized.slice(1);
 	return normalized;
 }
 

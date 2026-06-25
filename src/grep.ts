@@ -1,5 +1,5 @@
-import { readFile as fsReadFile, stat as fsStat } from "fs/promises";
-import path from "path";
+import { readFile as fsReadFile, stat as fsStat } from "node:fs/promises";
+import path from "node:path";
 
 import type { ExtensionAPI, ToolRenderResultOptions } from "@earendil-works/pi-coding-agent";
 import { createGrepTool } from "@earendil-works/pi-coding-agent";

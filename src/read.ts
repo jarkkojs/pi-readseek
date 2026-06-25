@@ -1,4 +1,4 @@
-import { readFile as fsReadFile } from "fs/promises";
+import { readFile as fsReadFile } from "node:fs/promises";
 
 import type { ExtensionAPI, ToolRenderResultOptions, AgentToolResult } from "@earendil-works/pi-coding-agent";
 import {
