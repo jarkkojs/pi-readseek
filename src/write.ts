@@ -9,7 +9,7 @@ import { resolveToCwd } from "./path-utils.js";
 import { ensureHashInit, formatHashlineDisplay } from "./hashline.js";
 import { buildReadSeekError, buildReadSeekLine, buildReadSeekWarning, buildToolErrorResult, type ReadSeekLine, type ReadSeekWarning } from "./readseek-value.js";
 import { looksLikeBinary } from "./binary-detect.js";
-import { getOrGenerateMap } from "./map-cache.js";
+import { getOrGenerateMap } from "./file-map.js";
 import { formatFileMapWithBudget } from "./readseek/formatter.js";
 
 import { defineToolPromptMetadata } from "./tool-prompt-metadata.js";

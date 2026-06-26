@@ -13,7 +13,7 @@ import { ensureHashInit, escapeControlCharsForDisplay } from "./hashline.js";
 import { buildReadSeekLine, buildToolErrorResult, type ReadSeekLine } from "./readseek-value.js";
 import { buildGrepOutput, type GrepOutputEntry, type GrepOutputGroup, type GrepOutputRecord, type GrepScopeWarning } from "./grep-output.js";
 
-import { getOrGenerateMap } from "./map-cache.js";
+import { getOrGenerateMap } from "./file-map.js";
 import { scopeGrepGroupsToSymbols } from "./grep-symbol-scope.js";
 import { resolveToCwd } from "./path-utils.js";
 import { throwIfAborted } from "./runtime.js";

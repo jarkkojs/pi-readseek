@@ -18,7 +18,7 @@ import { looksLikeBinary } from "./binary-detect.js";
 import { isSupportedImageBuffer } from "./image-detect.js";
 import { resolveToCwd } from "./path-utils.js";
 import { throwIfAborted } from "./runtime.js";
-import { getOrGenerateMap } from "./map-cache.js";
+import { getOrGenerateMap } from "./file-map.js";
 import { formatFileMapWithBudget } from "./readseek/formatter.js";
 import { findSymbol, type SymbolMatch } from "./readseek/symbol-lookup.js";
 import { formatAmbiguous, formatNotFound } from "./readseek/symbol-error-format.js";
