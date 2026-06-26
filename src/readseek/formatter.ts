@@ -30,37 +30,14 @@ function formatNumber(n: number): string {
 /**
  * Format a symbol for display.
  */
-function formatSymbol(
-  symbol: FileSymbol,
-  level: DetailLevel,
-  indent = 0
-): string {
+function formatSymbol(symbol: FileSymbol, indent = 0): string {
   const prefix = "  ".repeat(indent);
   const lineRange =
     symbol.startLine === symbol.endLine
       ? `[${symbol.startLine}]`
       : `[${symbol.startLine}-${symbol.endLine}]`;
 
-  let { name } = symbol;
-
-  if (level === DetailLevel.Full) {
-    if (symbol.signature) {
-      // Check whether the signature already contains the symbol name.
-      // Full-declaration signatures (e.g. Rust "pub fn foo(x: i32) -> bool")
-      // include the name; partial signatures (e.g. Python "(x, y) -> None")
-      // do not and should be appended.
-      if (symbol.signature.includes(name)) {
-        name = symbol.signature;
-      } else {
-        if (symbol.modifiers?.length) {
-          name = `${symbol.modifiers.join(" ")} ${name}`;
-        }
-        name = `${name}${symbol.signature}`;
-      }
-    } else if (symbol.modifiers?.length) {
-      name = `${symbol.modifiers.join(" ")} ${name}`;
-    }
-  }
+  const { name } = symbol;
 
   // Format based on kind
   let formatted: string;
@@ -88,11 +65,6 @@ function formatSymbol(
     }
   }
 
-  // Append docstring at Full detail level
-  if (level === DetailLevel.Full && symbol.docstring) {
-    formatted += ` — ${symbol.docstring}`;
-  }
-
   return formatted;
 }
 
@@ -107,7 +79,7 @@ function formatSymbols(
   const lines: string[] = [];
 
   for (const symbol of symbols) {
-    lines.push(formatSymbol(symbol, level, indent));
+    lines.push(formatSymbol(symbol, indent));
 
     // Add children for full, compact, and minimal levels (not outline or truncated)
     if (
@@ -118,7 +90,7 @@ function formatSymbols(
       // For minimal, flatten children
       if (level === DetailLevel.Minimal) {
         for (const child of symbol.children) {
-          lines.push(formatSymbol(child, level, indent + 1));
+          lines.push(formatSymbol(child, indent + 1));
         }
       } else {
         lines.push(...formatSymbols(symbol.children, level, indent + 1));
@@ -253,7 +225,6 @@ function reduceToLevel(map: FileMap, level: DetailLevel): FileMap {
   }
 
   if (level === DetailLevel.Minimal) {
-    // Remove signatures and docstrings but keep children flattened
     return {
       ...map,
       detailLevel: DetailLevel.Minimal,
@@ -262,41 +233,21 @@ function reduceToLevel(map: FileMap, level: DetailLevel): FileMap {
         kind: s.kind,
         startLine: s.startLine,
         endLine: s.endLine,
-        isExported: s.isExported,
         children: s.children?.map((c) => ({
           name: c.name,
           kind: c.kind,
           startLine: c.startLine,
           endLine: c.endLine,
-          isExported: c.isExported,
         })),
       })),
     };
   }
 
   if (level === DetailLevel.Compact) {
-    // Remove signatures but keep structure
-    return {
-      ...map,
-      detailLevel: DetailLevel.Compact,
-      symbols: map.symbols.map((s) => stripSignatures(s)),
-    };
+    return { ...map, detailLevel: DetailLevel.Compact };
   }
 
   return { ...map, detailLevel: DetailLevel.Full };
-}
-
-function stripSignatures(symbol: FileSymbol): FileSymbol {
-  return {
-    name: symbol.name,
-    kind: symbol.kind,
-    startLine: symbol.startLine,
-    endLine: symbol.endLine,
-    modifiers: symbol.modifiers,
-    docstring: symbol.docstring,
-    isExported: symbol.isExported,
-    children: symbol.children?.map(stripSignatures),
-  };
 }
 
 /**

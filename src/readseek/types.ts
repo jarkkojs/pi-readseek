@@ -12,16 +12,8 @@ export interface FileSymbol {
   startLine: number;
   /** Ending line number (1-indexed) */
   endLine: number;
-  /** Optional signature (for functions/methods) */
-  signature?: string;
   /** Child symbols (for nested structures like methods in classes) */
   children?: FileSymbol[];
-  /** Additional modifiers (async, static, etc.) */
-  modifiers?: string[];
-  /** First line of JSDoc / docstring (if present) */
-  docstring?: string;
-  /** Whether this symbol is exported from its module */
-  isExported?: boolean;
 }
 
 /**
