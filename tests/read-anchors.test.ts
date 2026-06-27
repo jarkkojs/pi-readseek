@@ -74,14 +74,13 @@ describe("executeRead anchor tracking", () => {
 			);
 			await writeFile(filePath, png);
 			const imageDetection = {
+				type: "image",
 				file: filePath,
-				language: "unknown",
-				engine: "none",
-				supported: false,
-				binary: true,
 				mime: "image/png",
-				syntax: null,
-				image: { format: "png", width: 1, height: 1, animated: false },
+				format: "png",
+				width: 1,
+				height: 1,
+				animated: false,
 			};
 			readseekDetectMock.mockImplementation((_filePath: string, options?: { ocr?: boolean }) =>
 				Promise.resolve(

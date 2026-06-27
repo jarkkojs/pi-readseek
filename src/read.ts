@@ -169,7 +169,7 @@ export async function executeRead(opts: ExecuteReadOptions): Promise<AgentToolRe
 		} catch {
 			// detect unavailable — fall through to binary-as-text handling below
 		}
-		if (detection?.image) {
+		if (detection?.type === "image") {
 			const builtinRead = createReadTool(cwd);
 			const builtinResult = await builtinRead.execute(toolCallId, p, signal, onUpdate);
 			const ocrText = detection.ocr?.text?.trim();

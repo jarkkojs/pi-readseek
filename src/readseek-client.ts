@@ -108,13 +108,6 @@ export interface ReadSeekCheckOutput {
 	diagnostics: ReadSeekDiagnostic[];
 }
 
-export interface ReadSeekImageInfo {
-	format: string;
-	width: number;
-	height: number;
-	animated: boolean;
-}
-
 export interface ReadSeekOcrLine {
 	text: string;
 	bbox: [number, number, number, number];
@@ -125,17 +118,36 @@ export interface ReadSeekOcrText {
 	lines: ReadSeekOcrLine[];
 }
 
-export interface ReadSeekDetection {
-	file: string;
-	language: string;
-	engine: string | null;
-	supported: boolean;
-	binary: boolean;
-	mime: string | null;
-	syntax: string | null;
-	image: ReadSeekImageInfo | null;
-	ocr?: ReadSeekOcrText;
-}
+export type ReadSeekDetection =
+	| {
+			type: "source";
+			file: string;
+			language: string;
+			engine?: string;
+			supported: boolean;
+			mime?: string;
+			syntax?: string;
+		}
+	| {
+			type: "image";
+			file: string;
+			mime?: string;
+			format: string;
+			width: number;
+			height: number;
+			animated: boolean;
+			ocr?: ReadSeekOcrText;
+		}
+	| {
+			type: "binary";
+			file: string;
+			mime?: string;
+		}
+	| {
+			type: "text";
+			file: string;
+			mime?: string;
+		};
 
 interface ReadSeekSearchOptions {
 	language?: string;
@@ -554,11 +566,6 @@ function optionalString(value: unknown, field: string): string | undefined {
 	return requireString(value, field);
 }
 
-function nullableString(value: unknown, field: string): string | null {
-	if (value === undefined || value === null) return null;
-	return requireString(value, field);
-}
-
 function parseRefsOutput(value: unknown): ReadSeekRefsOutput {
 	if (!value || typeof value !== "object") throw new Error("invalid readseek refs output");
 	const output = value as Record<string, unknown>;
@@ -634,18 +641,6 @@ export async function readseekCheck(
 	);
 }
 
-function parseImageInfo(value: unknown): ReadSeekImageInfo | null {
-	if (value === undefined || value === null) return null;
-	if (typeof value !== "object") throw new Error("invalid readseek detect image");
-	const image = value as Record<string, unknown>;
-	return {
-		format: requireString(image.format, "image.format"),
-		width: requireNumber(image.width, "image.width"),
-		height: requireNumber(image.height, "image.height"),
-		animated: requireBoolean(image.animated, "image.animated"),
-	};
-}
-
 function parseOcrText(value: unknown): ReadSeekOcrText | undefined {
 	if (value === undefined || value === null) return undefined;
 	if (typeof value !== "object") throw new Error("invalid readseek detect ocr");
@@ -669,17 +664,37 @@ function parseOcrText(value: unknown): ReadSeekOcrText | undefined {
 function parseDetectOutput(value: unknown): ReadSeekDetection {
 	if (!value || typeof value !== "object") throw new Error("invalid readseek detect output");
 	const output = value as Record<string, unknown>;
-	return {
-		file: requireString(output.file, "file"),
-		language: requireString(output.language, "language"),
-		engine: nullableString(output.engine, "engine"),
-		supported: requireBoolean(output.supported, "supported"),
-		binary: requireBoolean(output.binary, "binary"),
-		mime: nullableString(output.mime, "mime"),
-		syntax: nullableString(output.syntax, "syntax"),
-		image: parseImageInfo(output.image),
-		ocr: parseOcrText(output.ocr),
-	};
+	const type = requireString(output.type, "type");
+	const file = requireString(output.file, "file");
+	const mime = optionalString(output.mime, "mime");
+	switch (type) {
+		case "source":
+			return {
+				type,
+				file,
+				language: requireString(output.language, "language"),
+				engine: optionalString(output.engine, "engine"),
+				supported: requireBoolean(output.supported, "supported"),
+				mime,
+				syntax: optionalString(output.syntax, "syntax"),
+			};
+		case "image":
+			return {
+				type,
+				file,
+				mime,
+				format: requireString(output.format, "format"),
+				width: requireNumber(output.width, "width"),
+				height: requireNumber(output.height, "height"),
+				animated: requireBoolean(output.animated, "animated"),
+				ocr: parseOcrText(output.ocr),
+			};
+		case "binary":
+		case "text":
+			return { type, file, mime };
+		default:
+			throw new Error(`invalid readseek detect type: ${type}`);
+	}
 }
 
 export async function readseekDetect(
