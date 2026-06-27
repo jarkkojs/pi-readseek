@@ -8,7 +8,7 @@ import { resolveToCwd } from "./path-utils.js";
 import { classifyReadSeekFailure, readseekRefs, type ReadSeekReference } from "./readseek-client.js";
 import { buildRefsOutput, type RefsOutputFile, type RefsOutputLine } from "./refs-output.js";
 import type { FileAnchoredCallback } from "./tool-types.js";
-import { readseekGitSearchParams, validateIgnoredRequiresOthers } from "./readseek-params.js";
+import { langParam, readseekGitSearchParams, searchPathParam, validateIgnoredRequiresOthers } from "./readseek-params.js";
 import { registerReadSeekTool } from "./register-tool.js";
 
 import { renderAnchoredFilesResult, renderReadSeekSearchCall } from "./tui-render-utils.js";
@@ -135,8 +135,8 @@ export function registerRefsTool(pi: ExtensionAPI, options: RefsToolOptions = {}
     promptGuidelines: REFS_PROMPT_METADATA.promptGuidelines,
     parameters: Type.Object({
       name: Type.String({ description: "Identifier to find references for" }),
-      path: Type.Optional(Type.String({ description: "Search path" })),
-      lang: Type.Optional(Type.String({ description: "Language hint" })),
+      path: searchPathParam(),
+      lang: langParam(),
       scope: Type.Optional(Type.Boolean({ description: "Restrict to the binding under line/column (single file)" })),
       line: Type.Optional(Type.Number({ description: "One-based cursor line, used with scope" })),
       column: Type.Optional(Type.Number({ description: "One-based cursor byte column, used with scope" })),

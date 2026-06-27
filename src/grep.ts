@@ -22,6 +22,7 @@ import { coerceObviousBase10Int } from "./coerce-obvious-int.js";
 import { clampLineToWidth, clampLinesToWidth, linkToolPath, renderErrorResult, renderPendingResult, renderToolLabel, resolveRenderResultContext, summaryLine } from "./tui-render-utils.js";
 import type { FileAnchoredCallback } from "./tool-types.js";
 import { optionalIntOrString, registerReadSeekTool } from "./register-tool.js";
+import { searchPathParam } from "./readseek-params.js";
 
 const GREP_PROMPT_METADATA = defineToolPromptMetadata({
 	promptUrl: new URL("../prompts/grep.md", import.meta.url),
@@ -30,7 +31,7 @@ const GREP_PROMPT_METADATA = defineToolPromptMetadata({
 
 const grepSchema = Type.Object({
 	pattern: Type.String({ description: "Pattern to search" }),
-	path: Type.Optional(Type.String({ description: "Search path" })),
+	path: searchPathParam(),
 	glob: Type.Optional(Type.String({ description: "Glob filter" })),
 	ignoreCase: Type.Optional(Type.Boolean({ description: "Ignore case" })),
 	literal: Type.Optional(Type.Boolean({ description: "Treat pattern literally" })),

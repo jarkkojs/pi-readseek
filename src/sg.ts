@@ -10,7 +10,7 @@ import { statSearchPathOrError } from "./stat-search-path.js";
 import { classifyReadSeekFailure, isReadSeekAvailable, readseekSearch, type ReadSeekHashline, type ReadSeekSearchFileOutput } from "./readseek-client.js";
 import { buildSgOutput } from "./sg-output.js";
 import type { FileAnchoredCallback } from "./tool-types.js";
-import { readseekGitSearchParams, validateIgnoredRequiresOthers } from "./readseek-params.js";
+import { langParam, readseekGitSearchParams, searchPathParam, validateIgnoredRequiresOthers } from "./readseek-params.js";
 import { registerReadSeekTool } from "./register-tool.js";
 
 import { renderAnchoredFilesResult, renderReadSeekSearchCall } from "./tui-render-utils.js";
@@ -199,8 +199,8 @@ export function registerSgTool(pi: ExtensionAPI, options: SgToolOptions = {}) {
     promptGuidelines: SG_PROMPT_METADATA.promptGuidelines,
     parameters: Type.Object({
       pattern: Type.String({ description: "AST pattern" }),
-      lang: Type.Optional(Type.String({ description: "Language hint" })),
-      path: Type.Optional(Type.String({ description: "Search path" })),
+      lang: langParam(),
+      path: searchPathParam(),
       ...readseekGitSearchParams(),
     }),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
