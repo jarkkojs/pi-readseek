@@ -708,3 +708,123 @@ export async function readseekDetect(
 	args.push(filePath);
 	return parseDetectOutput(await runReadSeek(args, { signal: options.signal }));
 }
+
+// --- Rename ---
+
+export interface RenameConflict {
+	line: number;
+	column: number;
+	reason: string;
+}
+
+export interface RenameEdit {
+	line: number;
+	start_column: number;
+	end_column: number;
+	start_byte: number;
+	end_byte: number;
+	occurrence: string;
+	line_hash: string;
+	text: string;
+}
+
+export interface RenameFileOutput {
+	file: string;
+	language: string;
+	engine?: string;
+	file_hash: string;
+	conflicts: RenameConflict[];
+	edits: RenameEdit[];
+}
+
+export interface RenameOutput {
+	file: string;
+	language: string;
+	engine?: string;
+	file_hash: string;
+	old_name: string;
+	new_name: string;
+	applied: boolean;
+	conflicts: RenameConflict[];
+	edits: RenameEdit[];
+	others: RenameFileOutput[];
+}
+
+interface RenameOptions {
+	to: string;
+	line: number;
+	column?: number;
+	workspace?: string;
+	apply?: boolean;
+	language?: string;
+	cached?: boolean;
+	others?: boolean;
+	ignored?: boolean;
+	signal?: AbortSignal;
+}
+
+function parseRenameOutput(value: unknown): RenameOutput {
+	if (!value || typeof value !== "object") throw new Error("invalid readseek rename output");
+	const output = value as Record<string, unknown>;
+	return {
+		file: requireString(output.file, "file"),
+		language: requireString(output.language, "language"),
+		engine: optionalString(output.engine, "engine"),
+		file_hash: requireString(output.file_hash, "file_hash"),
+		old_name: requireString(output.old_name, "old_name"),
+		new_name: requireString(output.new_name, "new_name"),
+		applied: requireBoolean(output.applied, "applied"),
+		conflicts: (output.conflicts as any[] | undefined)?.map((c: Record<string, unknown>) => ({
+			line: requireNumber(c.line, "conflict.line"),
+			column: requireNumber(c.column, "conflict.column"),
+			reason: requireString(c.reason, "conflict.reason"),
+		})) ?? [],
+		edits: (output.edits as any[] | undefined)?.map((e: Record<string, unknown>) => ({
+			line: requireNumber(e.line, "edit.line"),
+			start_column: requireNumber(e.start_column, "edit.start_column"),
+			end_column: requireNumber(e.end_column, "edit.end_column"),
+			start_byte: requireNumber(e.start_byte, "edit.start_byte"),
+			end_byte: requireNumber(e.end_byte, "edit.end_byte"),
+			occurrence: requireString(e.occurrence, "edit.occurrence"),
+			line_hash: requireString(e.line_hash, "edit.line_hash"),
+			text: requireString(e.text, "edit.text"),
+		})) ?? [],
+		others: (output.others as any[] | undefined)?.map((o: Record<string, unknown>) => ({
+			file: requireString(o.file, "other.file"),
+			language: requireString(o.language, "other.language"),
+			engine: optionalString(o.engine, "other.engine"),
+			file_hash: requireString(o.file_hash, "other.file_hash"),
+			conflicts: (o.conflicts as any[] | undefined)?.map((c: Record<string, unknown>) => ({
+				line: requireNumber(c.line, "conflict.line"),
+				column: requireNumber(c.column, "conflict.column"),
+				reason: requireString(c.reason, "conflict.reason"),
+			})) ?? [],
+			edits: (o.edits as any[] | undefined)?.map((e: Record<string, unknown>) => ({
+				line: requireNumber(e.line, "edit.line"),
+				start_column: requireNumber(e.start_column, "edit.start_column"),
+				end_column: requireNumber(e.end_column, "edit.end_column"),
+				start_byte: requireNumber(e.start_byte, "edit.start_byte"),
+				end_byte: requireNumber(e.end_byte, "edit.end_byte"),
+				occurrence: requireString(e.occurrence, "edit.occurrence"),
+				line_hash: requireString(e.line_hash, "edit.line_hash"),
+				text: requireString(e.text, "edit.text"),
+			})) ?? [],
+		})) ?? [],
+	};
+}
+
+export async function readseekRename(
+	filePath: string,
+	options: RenameOptions,
+): Promise<RenameOutput> {
+	const args = ["rename", filePath, "--line", String(options.line)];
+	if (options.column !== undefined) args.push("--column", String(options.column));
+	args.push("--to", options.to);
+	if (options.apply) args.push("--apply");
+	if (options.workspace) args.push("--workspace", options.workspace);
+	if (options.language) args.push("--language", options.language);
+	if (options.cached) args.push("--cached");
+	if (options.others) args.push("--others");
+	if (options.ignored) args.push("--ignored");
+	return parseRenameOutput(await runReadSeek(args, { signal: options.signal }));
+}

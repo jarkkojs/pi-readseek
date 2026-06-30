@@ -4,6 +4,7 @@ import { registerEditTool } from "./src/edit.js";
 import { registerGrepTool } from "./src/grep.js";
 import { registerSgTool } from "./src/sg.js";
 import { registerRefsTool } from "./src/refs.js";
+import { registerRenameTool } from "./src/rename.js";
 import { registerWriteTool } from "./src/write.js";
 import { SessionAnchors } from "./src/session-anchors.js";
 import { isReadSeekAvailable } from "./src/readseek-client.js";
@@ -23,5 +24,6 @@ export default function piReadSeekExtension(pi: ExtensionAPI): void {
 	registerGrepTool(pi, { searchGuideline, onFileAnchored: markAnchored });
 	registerSgTool(pi, { onFileAnchored: markAnchored });
 	registerRefsTool(pi, { onFileAnchored: markAnchored });
+	registerRenameTool(pi);
 	registerWriteTool(pi, { onFileAnchored: markAnchored });
 }
