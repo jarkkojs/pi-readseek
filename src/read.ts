@@ -181,6 +181,7 @@ export async function executeRead(opts: ExecuteReadOptions): Promise<AgentToolRe
 			const shouldTranscribe = ocrMode === "on" || (ocrMode === "auto" && !opts.modelSupportsImages);
 			if (!shouldTranscribe) return succeed(builtinResult);
 
+			let ocrFailed = false;
 			try {
 				const ocrDetection = await readseekDetect(absolutePath, {
 					transcribe: true,
@@ -199,6 +200,16 @@ export async function executeRead(opts: ExecuteReadOptions): Promise<AgentToolRe
 					});
 				}
 			} catch {
+				ocrFailed = true;
+			}
+			if (ocrFailed) {
+				return succeed({
+					...builtinResult,
+					content: [
+						...(builtinResult.content ?? []),
+						{ type: "text" as const, text: "[Warning: local image analysis (OCR) unavailable — showing image attachment only]" },
+					],
+				});
 			}
 			return succeed(builtinResult);
 		}
