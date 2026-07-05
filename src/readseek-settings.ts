@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync, statSync, type Stats } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -89,16 +89,42 @@ function validateSettings(raw: unknown, source: string): ReadSeekSettingsResult 
   return { settings, warnings };
 }
 
-function readSettingsFile(path: string): ReadSeekSettingsResult {
-  if (!existsSync(path)) return { settings: {}, warnings: [] };
+interface SettingsFileCacheEntry {
+  mtimeMs: number;
+  size: number;
+  result: ReadSeekSettingsResult;
+}
 
+const settingsFileCache = new Map<string, SettingsFileCacheEntry>();
+
+function statFileOrNull(path: string): Stats | null {
+  try {
+    return statSync(path);
+  } catch {
+    return null;
+  }
+}
+
+function readSettingsFile(path: string): ReadSeekSettingsResult {
+  const stats = statFileOrNull(path);
+  if (!stats) {
+    settingsFileCache.delete(path);
+    return { settings: {}, warnings: [] };
+  }
+
+  const cached = settingsFileCache.get(path);
+  if (cached && cached.mtimeMs === stats.mtimeMs && cached.size === stats.size) return cached.result;
+
+  let result: ReadSeekSettingsResult;
   try {
     const text = readFileSync(path, "utf8");
-    return validateSettings(JSON.parse(text) as unknown, path);
+    result = validateSettings(JSON.parse(text) as unknown, path);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { settings: {}, warnings: [{ source: path, message: `Invalid JSON: ${message}` }] };
+    result = { settings: {}, warnings: [{ source: path, message: `Invalid JSON: ${message}` }] };
   }
+  settingsFileCache.set(path, { mtimeMs: stats.mtimeMs, size: stats.size, result });
+  return result;
 }
 
 function mergeSettings(base: ReadSeekJsonSettings, override: ReadSeekJsonSettings): ReadSeekJsonSettings {

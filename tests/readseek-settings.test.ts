@@ -77,4 +77,16 @@ describe("readseek settings", () => {
 		await writeGlobal({ read: { ocrMode: "off" } });
 		expect(resolveReadSeekOcrMode({ READSEEK_READ_OCR_MODE: "auto" })).toBe("auto");
 	});
+
+	it("picks up settings changes and deletions despite caching", async () => {
+		await writeGlobal({ read: { ocrMode: "auto" } });
+		expect(resolveReadSeekOcrMode()).toBe("auto");
+		expect(resolveReadSeekOcrMode()).toBe("auto");
+
+		await writeGlobal({ read: { ocrMode: "off" } });
+		expect(resolveReadSeekOcrMode()).toBe("off");
+
+		await rm(path.join(tempHome, ".pi", "agent", "readseek", "settings.json"));
+		expect(resolveReadSeekOcrMode()).toBe("on");
+	});
 });
