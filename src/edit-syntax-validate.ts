@@ -41,12 +41,13 @@ const EMPTY: ReadSeekCheckOutput = { errorCount: 0, missingCount: 0, diagnostics
  */
 export async function validateSyntaxRegression(
   input: ValidateInput,
+  options: { signal?: AbortSignal } = {},
 ): Promise<ValidateResult | null> {
   let before: ReadSeekCheckOutput;
   let after: ReadSeekCheckOutput;
   try {
-    before = input.before === undefined ? EMPTY : await readseekCheck(input.filePath, input.before);
-    after = await readseekCheck(input.filePath, input.after);
+    before = input.before === undefined ? EMPTY : await readseekCheck(input.filePath, input.before, { signal: options.signal });
+    after = await readseekCheck(input.filePath, input.after, { signal: options.signal });
   } catch {
     return null;
   }

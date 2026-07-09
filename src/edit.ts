@@ -454,7 +454,7 @@ export async function executeEdit(opts: ExecuteEditOptions): Promise<any> {
 			filePath: absolutePath,
 			before: originalNormalized,
 			after: result,
-		});
+		}, { signal });
 		if (regression) {
 			const lines = regression.errorLines.join(", ");
 			const message = `syntax-regression: lines ${lines}`;

@@ -556,11 +556,16 @@ function parseSearchOutput(value: unknown): ReadSeekSearchOutput {
 	};
 }
 
-export async function readseekRead(filePath: string, startLine?: number, endLine?: number): Promise<ReadSeekReadOutput> {
+export async function readseekRead(
+	filePath: string,
+	startLine?: number,
+	endLine?: number,
+	options: { signal?: AbortSignal } = {},
+): Promise<ReadSeekReadOutput> {
 	const args = ["read", filePath];
 	if (startLine !== undefined) args.push("--start", String(startLine));
 	if (endLine !== undefined) args.push("--end", String(endLine));
-	return parseReadOutput(await runReadSeek(args));
+	return parseReadOutput(await runReadSeek(args, { signal: options.signal }));
 }
 
 function fileMapFromReadSeekOutput(output: ReadSeekMapOutput, filePath: string, totalBytes: number): FileMap | null {

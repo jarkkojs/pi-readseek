@@ -359,8 +359,8 @@ export async function executeRead(opts: ExecuteReadOptions): Promise<AgentToolRe
 	let readseekOutput: Awaited<ReturnType<typeof readseekRead>>;
 	try {
 		readseekOutput = total === 0
-			? await readseekRead(absolutePath)
-			: await readseekRead(absolutePath, startLine, endIdx);
+			? await readseekRead(absolutePath, undefined, undefined, { signal })
+			: await readseekRead(absolutePath, startLine, endIdx, { signal });
 	} catch (err: any) {
 		const detail = err?.message ? ` — ${err.message}` : "";
 		const message = `readseek failed while reading ${rawPath}${detail}`;
