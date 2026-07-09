@@ -14,7 +14,7 @@ import { looksLikeBinary } from "./binary-detect.js";
 import { throwIfAborted } from "./runtime.js";
 import { formatFsError } from "./fs-error.js";
 import { buildEditOutput } from "./edit-output.js";
-import { classifyEdit, isDifftAvailable, runDifftastic } from "./edit-classify.js";
+import { classifyEdit } from "./edit-classify.js";
 import type { SemanticSummary } from "./readseek-value.js";
 import { buildReadSeekError } from "./readseek-value.js";
 import { classifyReadSeekFailure } from "./readseek-client.js";
@@ -516,23 +516,9 @@ export async function executeEdit(opts: ExecuteEditOptions): Promise<any> {
 	if (syntaxWarning) warnings.push(syntaxWarning);
 	// Semantic classification
 	const internalClassification = classifyEdit(originalNormalized, result);
-	const difftAvailable = await isDifftAvailable();
-	let semanticSummary: SemanticSummary = {
+	const semanticSummary: SemanticSummary = {
 		classification: internalClassification.classification,
-		difftasticAvailable: difftAvailable,
 	};
-
-	if (difftAvailable) {
-		const ext = path.split(".").pop() ?? "txt";
-		const difftResult = await runDifftastic(originalNormalized, result, ext);
-		if (difftResult) {
-			semanticSummary = {
-				classification: difftResult.classification,
-				difftasticAvailable: true,
-				...(difftResult.movedBlocks > 0 ? { movedBlocks: difftResult.movedBlocks } : {}),
-			};
-		}
-	}
 	const builtOutput = buildEditOutput({
 		path: absolutePath,
 		displayPath: path,

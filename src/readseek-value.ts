@@ -39,8 +39,6 @@ export interface ReadSeekRange {
 
 export interface SemanticSummary {
   classification: "no-op" | "whitespace-only" | "semantic" | "mixed";
-  difftasticAvailable: boolean;
-  movedBlocks?: number;
 }
 export interface ReadSeekEditResult {
   tool: "edit";

@@ -76,14 +76,8 @@ function formatWhitespaceOnlyWarning(semanticSummary: SemanticSummary | undefine
   if (!extractNewTextValues(edits).some((text) => /\S/.test(text))) return undefined;
   return "⚠ Edit classified as whitespace-only — if you intended a behavior change, re-read to verify.";
 }
-function formatSemanticSuffix(semanticSummary: SemanticSummary | undefined): string {
-  if (!semanticSummary) return "";
-
-  const movedBlocks = semanticSummary.movedBlocks ?? 0;
-  if (movedBlocks <= 0) return "";
-
-  const blockWord = movedBlocks === 1 ? "block" : "blocks";
-  return ` [semantic: ${semanticSummary.classification}, ${movedBlocks} ${blockWord} moved]`;
+function formatSemanticSuffix(_semanticSummary: SemanticSummary | undefined): string {
+  return "";
 }
 function formatReplaceHint(edits: unknown[] | undefined, noopEdits: unknown[]): string | undefined {
   if ((noopEdits ?? []).length > 0) return undefined;
