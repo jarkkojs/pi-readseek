@@ -105,12 +105,19 @@ describe("readseek settings", () => {
 		expect(warnings.map((warning) => warning.path)).toEqual(["readseek.imagemode", "readseek.grep.maxlines"]);
 	});
 
-	it("warns when settings are not nested under a readseek section", async () => {
-		await writeGlobal({ read: { imageMode: "off" } });
+	it("warns when a readseek setting is at the top level", async () => {
+		await writeGlobal({ imageMode: "off", theme: "blackboard-pro" });
 		const { settings, warnings } = resolveReadSeekJsonSettings();
 		expect(warnings).toHaveLength(1);
-		expect(warnings[0]?.path).toBe("readseek");
+		expect(warnings[0]?.path).toBe("imageMode");
 		expect(settings.imageMode).toBeUndefined();
+	});
+
+	it("does not warn when a non-readseek settings file omits the readseek section", async () => {
+		await writeGlobal({ packages: ["npm:pi-readseek"], theme: "blackboard-pro" });
+		const { settings, warnings } = resolveReadSeekJsonSettings();
+		expect(warnings).toEqual([]);
+		expect(settings).toEqual({});
 	});
 
 	it("picks up settings changes and deletions despite caching", async () => {

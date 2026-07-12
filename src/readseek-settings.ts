@@ -143,8 +143,13 @@ function validateSettings(raw: unknown, source: string): ReadSeekSettingsResult 
     return { settings, warnings };
   }
   if (!("readseek" in raw)) {
-    if (Object.keys(raw).length > 0) {
-      warnings.push({ source, path: "readseek", message: "Missing readseek section: every setting belongs under \"readseek\"" });
+    const misplaced = READSEEK_KEYS.filter((key) => key in raw);
+    if (misplaced.length > 0) {
+      warnings.push({
+        source,
+        path: misplaced[0],
+        message: `Readseek setting at top level: move ${misplaced.join(", ")} under "readseek"`,
+      });
     }
     return { settings, warnings };
   }
