@@ -139,7 +139,7 @@ describe("executeRead anchor tracking", () => {
 		}
 	});
 
-	it("appends OCR text to image reads and does not mark them as anchored", async () => {
+	it("appends image analysis (OCR, caption, objects) to image reads and does not mark them as anchored", async () => {
 		const cwd = await mkdtemp(path.join(tmpdir(), "pi-readseek-read-"));
 		try {
 			const filePath = await writeImage(cwd);
