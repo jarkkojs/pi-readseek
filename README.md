@@ -48,7 +48,7 @@ optional (defaults shown):
 ```json
 {
   "readseek": {
-    "replaceTools": [],
+    "replacedTools": [],
     "imageMode": "force",
     "syntaxValidation": "warn",
     "timeoutMs": 120000,
@@ -60,7 +60,7 @@ optional (defaults shown):
 }
 ```
 
-- **replaceTools:** built-in tool names to replace with their `readSeek_*` equivalents.
+- **replacedTools:** built-in tool names to replace with their `readSeek_*` equivalents.
   Valid values are `"read"`, `"edit"`, `"write"`, and `"grep"`. For a
   readseek-only file surface, use `["read", "edit", "write", "grep"]`.
 - **imageMode:** image OCR/caption/object analysis in `readSeek_read`: `"force"`

@@ -86,17 +86,17 @@ describe("readseek settings", () => {
 		expect(resolveReadSeekJsonSettings().settings.grep).toEqual({ maxLines: 25, maxBytes: 1000 });
 	});
 
-	it("reads replaceTools and syntaxValidation", async () => {
-		await writeGlobal({ readseek: { replaceTools: ["read", "edit"], syntaxValidation: "block" } });
-		expect(resolveReadSeekJsonSettings().settings.replaceTools).toEqual(["read", "edit"]);
+	it("reads replacedTools and syntaxValidation", async () => {
+		await writeGlobal({ readseek: { replacedTools: ["read", "edit"], syntaxValidation: "block" } });
+		expect(resolveReadSeekJsonSettings().settings.replacedTools).toEqual(["read", "edit"]);
 		expect(resolveReadSeekSyntaxValidation()).toBe("block");
 	});
 
-	it("keeps valid replaceTools entries and warns about unsupported tools", async () => {
-		await writeGlobal({ readseek: { replaceTools: ["read", "readSeek_read", "bash"] } });
+	it("keeps valid replacedTools entries and warns about unsupported tools", async () => {
+		await writeGlobal({ readseek: { replacedTools: ["read", "readSeek_read", "bash"] } });
 		const { settings, warnings } = resolveReadSeekJsonSettings();
-		expect(warnings.map((warning) => warning.path)).toEqual(["readseek.replaceTools[1]", "readseek.replaceTools[2]"]);
-		expect(settings.replaceTools).toEqual(["read"]);
+		expect(warnings.map((warning) => warning.path)).toEqual(["readseek.replacedTools[1]", "readseek.replacedTools[2]"]);
+		expect(settings.replacedTools).toEqual(["read"]);
 	});
 
 	it("warns on unknown keys in the readseek section", async () => {

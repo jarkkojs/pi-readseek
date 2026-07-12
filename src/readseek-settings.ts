@@ -19,7 +19,7 @@ const READSEEK_TOOL_REPLACEMENTS = {
 type ReadSeekReplacementTool = keyof typeof READSEEK_TOOL_REPLACEMENTS;
 
 interface ReadSeekJsonSettings {
-  replaceTools?: ReadSeekReplacementTool[];
+  replacedTools?: ReadSeekReplacementTool[];
   imageMode?: ReadSeekImageAnalysisMode;
   syntaxValidation?: ReadSeekSyntaxValidationMode;
   timeoutMs?: number;
@@ -37,7 +37,7 @@ export interface ReadSeekSettingsResult {
   warnings: ReadSeekSettingsWarning[];
 }
 
-const READSEEK_KEYS = ["replaceTools", "imageMode", "syntaxValidation", "timeoutMs", "grep"];
+const READSEEK_KEYS = ["replacedTools", "imageMode", "syntaxValidation", "timeoutMs", "grep"];
 const READSEEK_GREP_KEYS = ["maxLines", "maxBytes"];
 
 function globalSettingsPath(): string {
@@ -112,15 +112,15 @@ function readImageMode(
   return undefined;
 }
 
-function readReplaceTools(
+function readReplacedTools(
   raw: Record<string, unknown>,
   source: string,
   warnings: ReadSeekSettingsWarning[],
 ): ReadSeekReplacementTool[] | undefined {
-  if (!("replaceTools" in raw)) return undefined;
-  const value = raw.replaceTools;
+  if (!("replacedTools" in raw)) return undefined;
+  const value = raw.replacedTools;
   if (!Array.isArray(value)) {
-    warnings.push(invalid(source, "readseek.replaceTools"));
+    warnings.push(invalid(source, "readseek.replacedTools"));
     return undefined;
   }
 
@@ -129,7 +129,7 @@ function readReplaceTools(
     if (typeof tool === "string" && Object.hasOwn(READSEEK_TOOL_REPLACEMENTS, tool)) {
       tools.push(tool as ReadSeekReplacementTool);
     } else {
-      warnings.push(invalid(source, `readseek.replaceTools[${index}]`));
+      warnings.push(invalid(source, `readseek.replacedTools[${index}]`));
     }
   });
   return tools;
@@ -156,8 +156,8 @@ function validateSettings(raw: unknown, source: string): ReadSeekSettingsResult 
   const section = raw.readseek;
   warnUnknownKeys(section, READSEEK_KEYS, "readseek", source, warnings);
 
-  const replaceTools = readReplaceTools(section, source, warnings);
-  if (replaceTools !== undefined) settings.replaceTools = replaceTools;
+  const replacedTools = readReplacedTools(section, source, warnings);
+  if (replacedTools !== undefined) settings.replacedTools = replacedTools;
 
   const imageMode = readImageMode(section, source, warnings);
   if (imageMode !== undefined) settings.imageMode = imageMode;

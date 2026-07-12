@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { replaceTools, settingsWarnings, availability } = vi.hoisted(() => ({
-	replaceTools: { value: [] as string[] },
+const { replacedTools, settingsWarnings, availability } = vi.hoisted(() => ({
+	replacedTools: { value: [] as string[] },
 	settingsWarnings: { value: [] as Array<{ source: string; message: string }> },
 	availability: { value: { available: true } as { available: true } | { available: false; reason: string } },
 }));
@@ -13,7 +13,7 @@ vi.mock("../src/readseek-client.js", async (importOriginal) => ({
 
 vi.mock("../src/readseek-settings.js", () => ({
 	resolveReadSeekJsonSettings: () => ({
-		settings: { replaceTools: replaceTools.value },
+		settings: { replacedTools: replacedTools.value },
 		warnings: settingsWarnings.value,
 	}),
 	resolveReadSeekImageMode: () => "force",
@@ -66,7 +66,7 @@ function createPi(activeToolNames: string[]) {
 
 describe("pi-readseek extension", () => {
 	beforeEach(() => {
-		replaceTools.value = [];
+		replacedTools.value = [];
 		settingsWarnings.value = [];
 		availability.value = { available: true };
 	});
@@ -82,7 +82,7 @@ describe("pi-readseek extension", () => {
 	});
 
 	it("replaces configured built-in tools with their readseek equivalents", () => {
-		replaceTools.value = ["read", "edit", "write", "grep"];
+		replacedTools.value = ["read", "edit", "write", "grep"];
 		const ctx = createPi(["read", "bash", "edit", "write", "grep"]);
 
 		piReadSeekExtension(ctx.pi);
@@ -104,7 +104,7 @@ describe("pi-readseek extension", () => {
 
 	it("leaves the active tools alone when readseek ships no binary for the platform", () => {
 		availability.value = { available: false, reason: "@jarkkojs/readseek ships no binary for linux-arm64" };
-		replaceTools.value = ["read"];
+		replacedTools.value = ["read"];
 		const ctx = createPi(["read", "bash"]);
 
 		piReadSeekExtension(ctx.pi);

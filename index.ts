@@ -45,7 +45,7 @@ export default function piReadSeekExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", (_event, ctx) => {
 		const { settings, warnings } = resolveReadSeekJsonSettings();
-		const replaceTools = new Set<string>(settings.replaceTools ?? []);
+		const replacedTools = new Set<string>(settings.replacedTools ?? []);
 		const problems = warnings.map(formatSettingsWarning);
 
 		const availability = readSeekBinaryAvailability();
@@ -61,7 +61,7 @@ export default function piReadSeekExtension(pi: ExtensionAPI): void {
 		if (!availability.available) return;
 
 		const activeTools = [...pi.getActiveTools(), ...READSEEK_TOOL_NAMES]
-			.filter((name) => !replaceTools.has(name));
+			.filter((name) => !replacedTools.has(name));
 		pi.setActiveTools([...new Set(activeTools)]);
 	});
 }
