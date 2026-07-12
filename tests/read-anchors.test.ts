@@ -130,7 +130,7 @@ describe("executeRead anchor tracking", () => {
 
 			const text = (result.content as Array<{ type: string; text: string }>).map((part) => part.text).join("\n");
 			expect(text).toContain("image attachment");
-			expect(text).toContain("(OCR) unavailable");
+			expect(text).toContain("image analysis unavailable");
 			expect(text).not.toContain("binary");
 			const details = (result as any).details;
 			expect(details?.readSeekValue).toBeUndefined();

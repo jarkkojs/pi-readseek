@@ -181,7 +181,6 @@ export async function executeRead(opts: ExecuteReadOptions): Promise<AgentToolRe
 			const shouldRunVision = imageMode === "force" || (imageMode === "auto" && !opts.modelSupportsImages);
 			if (!shouldRunVision) return succeed(builtinResult);
 
-			let ocrFailed = false;
 			try {
 				const ocrDetection = await readSeekImage(absolutePath, ["ocr", "caption", "objects"], { signal });
 				const imageAnalysis = formatImageAnalysis(ocrDetection);
@@ -195,14 +194,11 @@ export async function executeRead(opts: ExecuteReadOptions): Promise<AgentToolRe
 					});
 				}
 			} catch {
-				ocrFailed = true;
-			}
-			if (ocrFailed) {
 				return succeed({
 					...builtinResult,
 					content: [
 						...(builtinResult.content ?? []),
-						{ type: "text" as const, text: "[Warning: local image analysis (OCR) unavailable — showing image attachment only]" },
+						{ type: "text" as const, text: "[Warning: local image analysis unavailable — showing image attachment only]" },
 					],
 				});
 			}
