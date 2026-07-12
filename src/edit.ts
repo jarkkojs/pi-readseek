@@ -565,7 +565,7 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 	const name = options.name ?? "readSeek_edit";
 	const promptMetadata = defineToolPromptMetadata({
 		promptUrl: new URL("../prompts/edit.md", import.meta.url),
-		promptSnippet: "Edit files using hash-verified anchors from readSeek_read/readSeek_grep/readSeek_search/readSeek_write",
+		promptSnippet: "Edit with fresh hash-verified anchors",
 		registeredName: name,
 		toolAliases: options.toolAliases,
 	});

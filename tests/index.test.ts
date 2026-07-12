@@ -82,6 +82,19 @@ describe("pi-readseek extension", () => {
 
 		expect(new Set(ctx.registeredTools)).toEqual(new Set(READSEEK_TOOLS));
 		expect(ctx.activeTools()).toEqual(["read", "bash", "edit", "write", ...READSEEK_TOOLS]);
+		expect(Object.fromEntries(
+			READSEEK_TOOLS.map((name) => [name, ctx.toolDefinitions.get(name)?.promptSnippet]),
+		)).toEqual({
+			readSeek_read: "Read files or images with anchors, maps, symbols, and OCR",
+			readSeek_edit: "Edit with fresh hash-verified anchors",
+			readSeek_grep: "Search file text with edit-ready anchors",
+			readSeek_search: "Search code by AST pattern with edit-ready anchors",
+			readSeek_refs: "Find identifier references with enclosing symbols",
+			readSeek_rename: "Rename a binding accurately from its cursor",
+			readSeek_hover: "Identify a cursor token and enclosing symbol",
+			readSeek_write: "Create or overwrite a file with edit anchors",
+			readSeek_def: "Find structural definitions for a symbol",
+		});
 	});
 
 	it("replaces configured built-in tools by registering readseek under the built-in name", () => {
@@ -120,7 +133,7 @@ describe("pi-readseek extension", () => {
 		expect(ctx.toolDefinitions.get("grep")?.promptGuidelines?.[0]).toBe("Use grep; it returns edit-ready anchors.");
 		expect(ctx.toolDefinitions.get("write")?.promptGuidelines?.[0]).toBe("Use write; it returns LINE:HASH anchors.");
 		expect(ctx.toolDefinitions.get("edit")?.description).toBe("Edit existing text files using fresh LINE:HASH anchors from read, grep, readSeek_search, or write.");
-		expect(ctx.toolDefinitions.get("edit")?.promptSnippet).toBe("Edit files using hash-verified anchors from read/grep/readSeek_search/write");
+		expect(ctx.toolDefinitions.get("edit")?.promptSnippet).toBe("Edit with fresh hash-verified anchors");
 	});
 
 	it("leaves the active tools alone when readseek ships no binary for the platform", () => {

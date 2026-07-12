@@ -49,7 +49,7 @@ export function mergeRanges(ranges: SgRange[]): SgRange[] {
 
 const SG_PROMPT_METADATA = defineToolPromptMetadata({
   promptUrl: new URL("../prompts/sg.md", import.meta.url),
-  promptSnippet: "Search code structurally with readseek and return edit-ready anchors",
+  promptSnippet: "Search code by AST pattern with edit-ready anchors",
 });
 
 interface SgToolOptions {

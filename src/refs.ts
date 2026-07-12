@@ -27,7 +27,7 @@ type RefsParams = {
 
 const REFS_PROMPT_METADATA = defineToolPromptMetadata({
   promptUrl: new URL("../prompts/refs.md", import.meta.url),
-  promptSnippet: "Find references to an identifier with readseek and return edit-ready anchors",
+  promptSnippet: "Find identifier references with enclosing symbols",
 });
 
 interface RefsToolOptions {

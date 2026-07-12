@@ -459,7 +459,7 @@ export function registerReadTool(pi: ExtensionAPI, options: ReadToolOptions = {}
 	const name = options.name ?? "readSeek_read";
 	const promptMetadata = defineToolPromptMetadata({
 		promptUrl: new URL("../prompts/read.md", import.meta.url),
-		promptSnippet: "Read text files or images; text reads include hashline anchors and optional maps/symbol lookup, image reads include the attachment plus OCR text, an image caption, and detected objects",
+		promptSnippet: "Read files or images with anchors, maps, symbols, and OCR",
 		registeredName: name,
 	});
 	const tool = registerReadSeekTool(pi, {

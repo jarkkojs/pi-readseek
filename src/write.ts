@@ -241,7 +241,7 @@ export function registerWriteTool(pi: ExtensionAPI, options: WriteToolOptions = 
   const name = options.name ?? "readSeek_write";
   const promptMetadata = defineToolPromptMetadata({
     promptUrl: new URL("../prompts/write.md", import.meta.url),
-    promptSnippet: "Create or overwrite a complete file and return edit anchors",
+    promptSnippet: "Create or overwrite a file with edit anchors",
     registeredName: name,
   });
   const tool = registerReadSeekTool(pi, {

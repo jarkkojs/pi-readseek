@@ -513,7 +513,7 @@ export function registerGrepTool(pi: ExtensionAPI, options: GrepToolOptions = {}
 	const name = options.name ?? "readSeek_grep";
 	const promptMetadata = defineToolPromptMetadata({
 		promptUrl: new URL("../prompts/grep.md", import.meta.url),
-		promptSnippet: "Search file contents and return edit-ready hashline anchors",
+		promptSnippet: "Search file text with edit-ready anchors",
 		registeredName: name,
 	});
 	const tool = registerReadSeekTool(pi, {

@@ -13,7 +13,7 @@ import { clampLineToWidth, clampLinesToWidth, linkToolPath, renderPendingResult,
 
 const RENAME_PROMPT_METADATA = defineToolPromptMetadata({
 	promptUrl: new URL("../prompts/rename.md", import.meta.url),
-	promptSnippet: "Rename an identifier with binding-accurate readseek rename",
+	promptSnippet: "Rename a binding accurately from its cursor",
 });
 
 const renameSchema = Type.Object({
