@@ -23,7 +23,19 @@ vi.mock("node:os", async (importOriginal) => {
 	};
 });
 
-const { readSeekRead, readSeekSearch, readSeekDetect, readSeekImage } = await import("../src/readseek-client.js");
+const { readSeekRead, readSeekSearch, readSeekDetect, readSeekImage, readSeekBinaryAvailability } = await import(
+	"../src/readseek-client.js"
+);
+
+function withArch<T>(arch: string, run: () => T): T {
+	const original = Object.getOwnPropertyDescriptor(process, "arch");
+	Object.defineProperty(process, "arch", { value: arch, configurable: true });
+	try {
+		return run();
+	} finally {
+		if (original) Object.defineProperty(process, "arch", original);
+	}
+}
 
 function spawnResult(stdout: string) {
 	const child = new EventEmitter() as EventEmitter & {
@@ -158,6 +170,19 @@ describe("readseek client parsing", () => {
 		await expect(readSeekRead("/tmp/file.txt")).rejects.toThrow(
 			"Required positional arguments not provided: name",
 		);
+	});
+
+	it("reports the platform when readseek ships no binary for it", () => {
+		const availability = withArch("riscv64", () => readSeekBinaryAvailability());
+
+		expect(availability.available).toBe(false);
+		if (!availability.available) {
+			expect(availability.reason).toContain(`ships no binary for ${process.platform}-riscv64`);
+		}
+	});
+
+	it("finds the binary on a supported platform", () => {
+		expect(readSeekBinaryAvailability()).toEqual({ available: true });
 	});
 
 	it("reports readseek signal crashes by signal name", async () => {

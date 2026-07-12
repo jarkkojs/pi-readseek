@@ -9,6 +9,7 @@ import { registerHoverTool } from "./src/hover.js";
 import { registerWriteTool } from "./src/write.js";
 import { registerDefTool } from "./src/def.js";
 import { SessionAnchors } from "./src/session-anchors.js";
+import { readSeekBinaryAvailability } from "./src/readseek-client.js";
 import { resolveReadSeekJsonSettings, type ReadSeekSettingsWarning } from "./src/readseek-settings.js";
 
 const READSEEK_TOOL_NAMES = [
@@ -52,10 +53,18 @@ export default function piReadSeekExtension(pi: ExtensionAPI): void {
 		for (const name of excludeTools) {
 			if (!knownTools.has(name)) problems.push(`Unknown tool "${name}" in readseek.excludeTools`);
 		}
+
+		const availability = readSeekBinaryAvailability();
+		if (!availability.available) {
+			problems.push(`readseek tools are inactive: ${availability.reason}`);
+		}
+
 		for (const problem of problems) {
 			if (ctx.hasUI) ctx.ui.notify(problem, "warning");
 			else console.warn(problem);
 		}
+
+		if (!availability.available) return;
 
 		const activeTools = [...pi.getActiveTools(), ...READSEEK_TOOL_NAMES]
 			.filter((name) => !excludeTools.has(name));

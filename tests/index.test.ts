@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { excludeTools, settingsWarnings } = vi.hoisted(() => ({
+const { excludeTools, settingsWarnings, availability } = vi.hoisted(() => ({
 	excludeTools: { value: [] as string[] },
 	settingsWarnings: { value: [] as Array<{ source: string; message: string }> },
+	availability: { value: { available: true } as { available: true } | { available: false; reason: string } },
+}));
+
+vi.mock("../src/readseek-client.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/readseek-client.js")>()),
+	readSeekBinaryAvailability: () => availability.value,
 }));
 
 vi.mock("../src/readseek-settings.js", () => ({
@@ -62,6 +68,7 @@ describe("pi-readseek extension", () => {
 	beforeEach(() => {
 		excludeTools.value = [];
 		settingsWarnings.value = [];
+		availability.value = { available: true };
 	});
 
 	it("activates readseek tools without removing active built-ins", () => {
@@ -92,6 +99,22 @@ describe("pi-readseek extension", () => {
 			"readSeek_write",
 			"readSeek_def",
 		]);
+	});
+
+	it("leaves the active tools alone when readseek ships no binary for the platform", () => {
+		availability.value = { available: false, reason: "@jarkkojs/readseek ships no binary for linux-arm64" };
+		excludeTools.value = ["read"];
+		const ctx = createPi(["read", "bash"]);
+
+		piReadSeekExtension(ctx.pi);
+		ctx.runSessionStart();
+
+		expect(ctx.notify).toHaveBeenCalledWith(
+			"readseek tools are inactive: @jarkkojs/readseek ships no binary for linux-arm64",
+			"warning",
+		);
+		expect(ctx.pi.setActiveTools).not.toHaveBeenCalled();
+		expect(ctx.activeTools()).toEqual(["read", "bash"]);
 	});
 
 	it("warns about settings problems at session start", () => {

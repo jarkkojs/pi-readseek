@@ -217,22 +217,40 @@ function readSeekPackageDir(): string {
 	return path.dirname(require.resolve("@jarkkojs/readseek/package.json"));
 }
 
+const READSEEK_PLATFORM_PACKAGES: Record<string, string> = {
+	"darwin-arm64": "@jarkkojs/readseek-darwin-arm64",
+	"linux-x64": "@jarkkojs/readseek-linux-x64",
+	"win32-x64": "@jarkkojs/readseek-win32-x64",
+};
+
+function readSeekPlatform(): string {
+	return `${process.platform}-${process.arch}`;
+}
+
 function readSeekBinaryPath(): string {
-	const platformPackage = (() => {
-		switch (process.platform) {
-			case "darwin":
-				return "@jarkkojs/readseek-darwin-arm64";
-			case "linux":
-				return "@jarkkojs/readseek-linux-x64";
-			case "win32":
-				return "@jarkkojs/readseek-win32-x64";
-			default:
-				throw new Error(`unsupported readseek platform: ${process.platform}`);
-		}
-	})();
+	const platform = readSeekPlatform();
+	const platformPackage = READSEEK_PLATFORM_PACKAGES[platform];
+	if (!platformPackage) {
+		const supported = Object.keys(READSEEK_PLATFORM_PACKAGES).join(", ");
+		throw new Error(`@jarkkojs/readseek ships no binary for ${platform}; it supports ${supported}`);
+	}
 
 	const packageJson = require.resolve(`${platformPackage}/package.json`, { paths: [readSeekPackageDir()] });
 	return path.join(path.dirname(packageJson), "bin", process.platform === "win32" ? "readseek.exe" : "readseek");
+}
+
+/**
+ * Report whether a readseek binary can be resolved for the running platform,
+ * along with the reason when it cannot. Used to keep the readseek tools out of
+ * the active set on hosts that readseek publishes no binary for.
+ */
+export function readSeekBinaryAvailability(): { available: true } | { available: false; reason: string } {
+	try {
+		readSeekBinaryPath();
+		return { available: true };
+	} catch (err) {
+		return { available: false, reason: classifyReadSeekFailure(err).message };
+	}
 }
 
 interface ReadSeekFailure {
