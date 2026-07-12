@@ -39,11 +39,11 @@ function createPi(activeToolNames: string[]) {
 	let activeTools = [...activeToolNames];
 	let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
 	const registeredTools: string[] = [];
-	const toolDefinitions = new Map<string, { promptGuidelines?: string[] }>();
+	const toolDefinitions = new Map<string, { description?: string; promptSnippet?: string; promptGuidelines?: string[] }>();
 	const notify = vi.fn();
 
 	const pi = {
-		registerTool: vi.fn((tool: { name: string; promptGuidelines?: string[] }) => {
+		registerTool: vi.fn((tool: { name: string; description?: string; promptSnippet?: string; promptGuidelines?: string[] }) => {
 			registeredTools.push(tool.name);
 			toolDefinitions.set(tool.name, tool);
 		}),
@@ -119,6 +119,8 @@ describe("pi-readseek extension", () => {
 		expect(ctx.toolDefinitions.get("edit")?.promptGuidelines?.[0]).toBe("Use edit; it verifies fresh LINE:HASH anchors.");
 		expect(ctx.toolDefinitions.get("grep")?.promptGuidelines?.[0]).toBe("Use grep; it returns edit-ready anchors.");
 		expect(ctx.toolDefinitions.get("write")?.promptGuidelines?.[0]).toBe("Use write; it returns LINE:HASH anchors.");
+		expect(ctx.toolDefinitions.get("edit")?.description).toBe("Edit existing text files using fresh LINE:HASH anchors from read, grep, readSeek_search, or write.");
+		expect(ctx.toolDefinitions.get("edit")?.promptSnippet).toBe("Edit files using hash-verified anchors from read/grep/readSeek_search/write");
 	});
 
 	it("leaves the active tools alone when readseek ships no binary for the platform", () => {

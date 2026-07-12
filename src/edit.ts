@@ -107,6 +107,7 @@ export interface EditToolOptions {
 	wasReadInSession?: FreshAnchorsPredicate;
 	syntaxValidate?: SyntaxValidateOptions["syntaxValidate"];
 	name?: string;
+	toolAliases?: Readonly<Record<string, string>>;
 }
 
 export interface ExecuteEditOptions {
@@ -566,6 +567,7 @@ export function registerEditTool(pi: ExtensionAPI, options: EditToolOptions = {}
 		promptUrl: new URL("../prompts/edit.md", import.meta.url),
 		promptSnippet: "Edit files using hash-verified anchors from readSeek_read/readSeek_grep/readSeek_search/readSeek_write",
 		registeredName: name,
+		toolAliases: options.toolAliases,
 	});
 	const tool = registerReadSeekTool(pi, {
 		name,

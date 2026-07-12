@@ -29,4 +29,21 @@ describe("defineToolPromptMetadata", () => {
     expect(metadata.promptGuidelines).toEqual(expect.arrayContaining([`Use ${builtInTool}; ${benefit}`]));
     expect(metadata.promptGuidelines.join("\n")).not.toContain(readSeekTool);
   });
+
+  it("rewrites cross-tool references to registered aliases", () => {
+    const metadata = defineToolPromptMetadata({
+      promptUrl: new URL("../prompts/edit.md", import.meta.url),
+      promptSnippet: "Edit files using hash-verified anchors from readSeek_read/readSeek_grep/readSeek_search/readSeek_write",
+      registeredName: "edit",
+      toolAliases: {
+        readSeek_read: "read",
+        readSeek_edit: "edit",
+        readSeek_grep: "grep",
+        readSeek_write: "write",
+      },
+    });
+
+    expect(metadata.description).toBe("Edit existing text files using fresh LINE:HASH anchors from read, grep, readSeek_search, or write.");
+    expect(metadata.promptSnippet).toBe("Edit files using hash-verified anchors from read/grep/readSeek_search/write");
+  });
 });

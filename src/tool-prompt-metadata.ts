@@ -80,10 +80,19 @@ function promptFileName(promptUrl: URL): string {
   return promptUrl.pathname.split("/").pop() ?? "";
 }
 
+function rewriteToolAliases(value: string, toolAliases: Readonly<Record<string, string>> | undefined): string {
+  if (!toolAliases) return value;
+  return Object.entries(toolAliases).reduce(
+    (rewritten, [canonicalName, registeredName]) => rewritten.replaceAll(canonicalName, registeredName),
+    value,
+  );
+}
+
 export function defineToolPromptMetadata(options: {
   promptUrl: URL;
   promptSnippet: string;
   registeredName?: string;
+  toolAliases?: Readonly<Record<string, string>>;
 }): ToolPromptMetadata {
   const prompt = loadPrompt(options.promptUrl);
   const fileName = promptFileName(options.promptUrl);
@@ -96,12 +105,15 @@ export function defineToolPromptMetadata(options: {
       : `Use ${registeredName}; ${replaceable.benefit}`
     : undefined;
   return {
-    description: compactDescription ?? firstPromptParagraph(prompt),
-    promptSnippet: options.promptSnippet,
+    description: rewriteToolAliases(compactDescription ?? firstPromptParagraph(prompt), options.toolAliases),
+    promptSnippet: rewriteToolAliases(options.promptSnippet, options.toolAliases),
     promptGuidelines: [
       ...(preferenceGuideline ? [preferenceGuideline] : []),
       ...(COMPACT_GUIDELINES[fileName] ?? []).map((guideline) =>
-        registeredName && replaceable ? guideline.replaceAll(replaceable.readSeekName, registeredName) : guideline,
+        rewriteToolAliases(
+          registeredName && replaceable ? guideline.replaceAll(replaceable.readSeekName, registeredName) : guideline,
+          options.toolAliases,
+        ),
       ),
     ],
   };

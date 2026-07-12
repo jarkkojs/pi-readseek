@@ -68,9 +68,15 @@ export default function piReadSeekExtension(pi: ExtensionAPI): void {
 	const editName = swap("edit", "readSeek_edit");
 	const writeName = swap("write", "readSeek_write");
 	const grepName = swap("grep", "readSeek_grep");
+	const toolAliases = {
+		readSeek_read: readName,
+		readSeek_edit: editName,
+		readSeek_grep: grepName,
+		readSeek_write: writeName,
+	};
 
 	registerReadTool(pi, { onSuccessfulRead: markAnchored, name: readName });
-	registerEditTool(pi, { wasReadInSession: hasFreshAnchors, name: editName });
+	registerEditTool(pi, { wasReadInSession: hasFreshAnchors, name: editName, toolAliases });
 	registerGrepTool(pi, { onFileAnchored: markAnchored, name: grepName });
 	registerSgTool(pi, { onFileAnchored: markAnchored });
 	registerRefsTool(pi, { onFileAnchored: markAnchored });
