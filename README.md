@@ -1,5 +1,7 @@
 # pi-readseek
 
+>**Archived and moved** to https://github.com/jarkkojs/readseek.
+
 `pi-readseek` is a pi extension for readseek-backed file reading, hash-anchored
 editing, anchored grep, structural maps, symbol lookup, and structural search.
 It exposes readseek tools under the `readSeek_` prefix. Built-in pi tools stay
